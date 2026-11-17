@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="LANG1422 項目資金申請原型：按人數及需要即時配對圖書館空位（模擬數據）">
+<title>按需配對尋位原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+[hidden] { display: none !important; }
+/* Layout: a phone-sized app (390×844 frame on desktop, full screen on phones) with three tabs: 配對, 平面圖, 需求. */
+:root {
+  --bg: #E9E6DF;
+  --app: #FBFAF6;
+  --panel: #FFFFFF;
+  --ink: #16233B;
+  --soft: #5A6475;
+  --line: #E1DCD2;
+  --blue: #2F5D9E;
+  --blue-soft: #DCE5F2;
+  --taken: #C8CDD5;
+  --away: #F1D3A1;
+  --orange: #B8590F;
+  --frame: #16233B;
+  --font-body: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', Arial, sans-serif;
+  --font-num: 'Space Grotesk', 'Noto Sans TC', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1320; --app: #131D2F; --panel: #1A2740; --ink: #EEF1F6; --soft: #A9B4C6; --line: #2A3A56;
+    --blue: #7FA6E0; --blue-soft: #263A5C; --taken: #364257; --away: #6B5428; --orange: #F0A35E; --frame: #3A4A66;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1320; --app: #131D2F; --panel: #1A2740; --ink: #EEF1F6; --soft: #A9B4C6; --line: #2A3A56;
+  --blue: #7FA6E0; --blue-soft: #263A5C; --taken: #364257; --away: #6B5428; --orange: #F0A35E; --frame: #3A4A66;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding-block: 20px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.caption { font-size: 13px; color: var(--soft); text-align: center; }
+.caption b { color: var(--orange); font-weight: 700; }
+.phone {
+  width: 390px; height: 844px; max-width: 100%; background: var(--app); border: 10px solid var(--frame); border-radius: 48px;
+  overflow: hidden; display: flex; flex-direction: column; position: relative; box-shadow: 0 20px 50px rgba(22,35,59,.18);
+}
+@media (max-width: 480px) {
+  body { padding: 0; gap: 0; }
+  .caption { display: none; }
+  .phone { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; }
+}
+.statusbar { display: flex; justify-content: space-between; padding: 10px 24px 0; font: 600 13px var(--font-num); color: var(--ink); }
+@media (max-width: 480px) { .statusbar { display: none; } }
+.appbar { padding: 10px 20px 12px; display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; border-bottom: 1px solid var(--line); }
+.appbar h1 { margin: 0; font-size: 22px; line-height: 1.2; }
+.appbar .where { font-size: 13px; color: var(--soft); }
+.live { font-size: 12px; color: var(--soft); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #3BA55C; }
+@media (prefers-reduced-motion: no-preference) { .dot { animation: pulse 2s ease-in-out infinite; } }
+@keyframes pulse { 50% { opacity: .35; } }
+
+.view { flex: 1; overflow-y: auto; padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+.view[hidden] { display: none !important; }
+.label { font-size: 13px; color: var(--soft); font-weight: 700; letter-spacing: .04em; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: inherit; font-size: 15px; padding: 7px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--app); font-weight: 700; }
+.n-row { display: flex; align-items: center; gap: 8px; }
+.n-row .chip { min-width: 54px; text-align: center; padding: 7px 0; }
+.chip:disabled { opacity: .4; cursor: not-allowed; }
+.hint { margin: -4px 0 0; font-size: 12px; color: var(--soft); }
+button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.summary { display: flex; align-items: baseline; gap: 8px; padding-top: 4px; }
+.summary .n { font: 700 40px/1 var(--font-num); color: var(--blue); font-variant-numeric: tabular-nums; }
+.summary .t { color: var(--soft); }
+.results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.card .ids { font: 700 17px var(--font-num); }
+.card .zone { font-size: 14px; }
+.card .tags { font-size: 13px; color: var(--soft); }
+.card .dist { font: 700 15px var(--font-num); color: var(--blue); white-space: nowrap; text-align: right; }
+.show { font: inherit; font-size: 13px; color: var(--blue); background: none; border: 0; padding: 4px 0 0; cursor: pointer; }
+.empty { margin: 0; color: var(--soft); font-size: 14px; background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; padding: 12px 14px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--soft); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.zonebox { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.zone-h { font-size: 13px; color: var(--soft); display: flex; justify-content: space-between; }
+.zone-h b { color: var(--ink); }
+.row { display: flex; gap: 6px; }
+.tables { display: grid; grid-template-columns: repeat(2, max-content); gap: 10px 16px; }
+.table { display: grid; grid-template-columns: repeat(2, 38px); gap: 5px; padding: 5px; border-radius: 9px; background: color-mix(in srgb, var(--line) 60%, transparent); }
+.seat { width: 38px; height: 38px; border-radius: 8px; border: 2px solid transparent; padding: 0; cursor: pointer; background: var(--blue-soft); color: var(--ink); font: 600 11px/1 var(--font-num); position: relative; }
+.seat.taken { background: var(--taken); color: var(--soft); }
+.seat.away { background: var(--away); }
+.seat.match { background: var(--blue); color: var(--app); }
+.seat.pick { border-color: var(--orange); }
+.seat.dim { opacity: .4; }
+.seat .plug { position: absolute; top: 1px; right: 2px; font-size: 8px; }
+@media (prefers-reduced-motion: no-preference) { .seat { transition: background-color .35s, opacity .35s; } }
+.entrance { font-size: 12px; color: var(--soft); text-align: right; letter-spacing: .08em; }
+
+.bars { display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.bar { display: grid; grid-template-columns: 96px minmax(0, 1fr) 40px; gap: 8px; align-items: center; font-size: 14px; }
+.track { height: 10px; border-radius: 6px; background: color-mix(in srgb, var(--line) 80%, transparent); overflow: hidden; }
+.fill { height: 100%; background: var(--blue); border-radius: 6px; }
+.fill.miss { background: var(--orange); }
+.bar .v { font-family: var(--font-num); text-align: right; font-variant-numeric: tabular-nums; }
+.note { font-size: 13px; color: var(--soft); margin: 0; }
+
+.tabbar { display: flex; border-top: 1px solid var(--line); background: var(--app); padding: 6px 8px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.tab { flex: 1; font: inherit; font-size: 13px; background: none; border: 0; color: var(--soft); padding: 6px 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tab .ic { font-size: 18px; line-height: 1; }
+.tab[aria-selected="true"] { color: var(--blue); font-weight: 700; }
+
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); border-radius: 20px 20px 0 0; padding: 14px 20px calc(18px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 30px rgba(22,35,59,.15); display: flex; flex-direction: column; gap: 10px; }
+.sheet[hidden] { display: none !important; }
+.sheet .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); align-self: center; }
+.sheet h2 { margin: 0; font-size: 18px; }
+.sheet .attrs { color: var(--soft); font-size: 14px; }
+.sheet .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--app); color: var(--ink); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: var(--app); }
+.toast { color: var(--orange); font-size: 14px; min-height: 1.5em; }
+</style>
+</head>
+<body>
+
+<p class="caption"><b>原型示意・模擬數據</b>　LANG1422 評估二B｜按需配對即時尋位平台</p>
+<div class="phone">
+  <div class="statusbar" aria-hidden="true"><span id="sbtime">9:41</span><span>5G ▮▮▮</span></div>
+  <header class="appbar">
+    <div><h1>按需配對</h1><div class="where">圖書館 LG1 試點區・40 個座位</div></div>
+    <span class="live"><span class="dot"></span><span id="clock">即時</span></span>
+  </header>
+
+  <main class="view" id="v-match" role="tabpanel" aria-labelledby="t-match">
+    <div class="n-row" role="group" aria-label="幾多人一齊坐">
+      <span class="label" style="margin-right:4px;">人數</span>
+      <button class="chip n-btn" data-n="1" id="n-1" aria-pressed="false">1 人</button>
+      <button class="chip n-btn" data-n="2" id="n-2" aria-pressed="true">2 人</button>
+      <button class="chip n-btn" data-n="3" id="n-3" aria-pressed="false">3 人</button>
+      <button class="chip n-btn" data-n="4" id="n-4" aria-pressed="false">4 人</button>
+    </div>
+    <div class="label">我的需要</div>
+    <div class="chips" role="group" aria-label="座位條件">
+      <button class="chip" id="f-plug" aria-pressed="true">⚡ 有插座</button>
+      <button class="chip" id="f-quiet" aria-pressed="false">安靜區</button>
+      <button class="chip" id="f-single" aria-pressed="false" disabled>單人隔間</button>
+    </div>
+    <p class="hint" id="single-hint">單人隔間只適用於 1 人；多人會配對可坐在一起的相鄰座位。</p>
+    <div class="summary"><span class="n" id="count">0</span><span class="t" id="count-t">組符合</span></div>
+    <ul class="results" id="results"></ul>
+  </main>
+
+  <main class="view" id="v-map" role="tabpanel" aria-labelledby="t-map" hidden>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--blue)"></i>符合需要</span>
+      <span><i class="sw" style="background:var(--blue-soft)"></i>其他空位</span>
+      <span><i class="sw" style="background:var(--away)"></i>暫離中</span>
+      <span><i class="sw" style="background:var(--taken)"></i>有人</span>
+      <span>⚡ 插座</span>
+    </div>
+    <div id="plan" style="display:flex; flex-direction:column; gap:12px;"></div>
+    <div class="entrance">入口 ↓</div>
+  </main>
+
+  <main class="view" id="v-demand" role="tabpanel" aria-labelledby="t-demand" hidden>
+    <div class="label">本週大家在找甚麼座位</div>
+    <div class="bars" id="bars"></div>
+    <p class="note">每次篩選都匿名記錄條件及結果，不記錄身份。整理後交圖書館，作為增加或調整座位種類的依據。數字為示意。</p>
+  </main>
+
+  <nav class="tabbar" role="tablist">
+    <button class="tab" role="tab" id="t-match" aria-selected="true" aria-controls="v-match"><span class="ic">⌕</span>配對</button>
+    <button class="tab" role="tab" id="t-map" aria-selected="false" aria-controls="v-map"><span class="ic">▦</span>平面圖</button>
+    <button class="tab" role="tab" id="t-demand" aria-selected="false" aria-controls="v-demand"><span class="ic">▤</span>需求</button>
+  </nav>
+
+  <div class="sheet" id="sheet" hidden role="dialog" aria-labelledby="sheet-h">
+    <div class="grab"></div>
+    <h2 id="sheet-h"></h2>
+    <div class="attrs" id="sheet-attrs"></div>
+    <div class="acts">
+      <button class="btn" id="rep-attr">回報屬性有誤</button>
+      <button class="btn" id="rep-item">回報座位有物品</button>
+      <button class="btn primary" id="sheet-close">關閉</button>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const seats = [];
+  function add(id, zone, group, idx, attrs) { seats.push(Object.assign({ id, zone, group, idx, status: 'free', awayMin: 0 }, attrs)); }
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) add('A' + (r * 6 + i + 1), 'A', 'A-r' + r, i, { plug: r === 0, quiet: true, single: true, dist: 30 + i * 3 + r * 4 });
+  for (let t = 0; t < 4; t++) for (let i = 0; i < 4; i++) add('B' + (t * 4 + i + 1), 'B', 'B-t' + t, i, { plug: t < 2, quiet: false, single: false, table: true, dist: 12 + t * 6 });
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) add('C' + (r * 6 + i + 1), 'C', 'C-r' + r, i, { plug: i % 2 === 0 || r === 1, quiet: true, single: false, dist: 8 + i * 4 + r * 2 });
+  const byId = Object.fromEntries(seats.map(s => [s.id, s]));
+  ['A1','A3','A8','A9','A12','B1','B2','B3','B6','B9','B10','B11','B12','C1','C2','C5','C9','C12'].forEach(id => byId[id].status = 'taken');
+  Object.entries({ A6: 12, B13: 22, C3: 5, C10: 18 }).forEach(([id, m]) => { byId[id].status = 'away'; byId[id].awayMin = m; });
+
+  const state = { plug: true, quiet: false, single: false, n: 2, pick: null, seat: null };
+  const zoneName = { A: '安靜區單人隔間', B: '四人枱', C: '窗邊長枱' };
+
+  function okSeat(s) {
+    return s.status === 'free' && (!state.plug || s.plug) && (!state.quiet || s.quiet) && (!state.single || s.single);
+  }
+  function findGroups() {
+    const groups = {};
+    seats.forEach(s => (groups[s.group] = groups[s.group] || []).push(s));
+    const found = [];
+    Object.values(groups).forEach(list => {
+      list.sort((a, b) => a.idx - b.idx);
+      // Partitioned single carrels are never offered to a group: neighbours there cannot sit together.
+      if (state.n > 1 && list[0].single) return;
+      if (list[0].table) { const ok = list.filter(okSeat); if (ok.length >= state.n) found.push(ok.slice(0, state.n)); }
+      else for (let i = 0; i + state.n <= list.length; i++) { const w = list.slice(i, i + state.n); if (w.every(okSeat)) { found.push(w); i += state.n - 1; } }
+    });
+    found.forEach(g => g.dist = Math.min(...g.map(s => s.dist)));
+    return found.sort((a, b) => a.dist - b.dist);
+  }
+  const groupLabel = g => g.length === 1 ? g[0].id : g[0].table ? g.map(s => s.id).join('、') : g[0].id + '–' + g[g.length - 1].id;
+
+  function seatBtn(s) {
+    const b = document.createElement('button');
+    b.className = 'seat'; b.id = 'seat-' + s.id;
+    b.addEventListener('click', () => openSheet(s.id));
+    return b;
+  }
+  function buildPlan() {
+    const plan = document.getElementById('plan');
+    const mk = (title, count) => { const z = document.createElement('div'); z.className = 'zonebox'; z.innerHTML = '<div class="zone-h"><b>' + title + '</b><span>' + count + ' 位</span></div>'; return z; };
+    const zA = mk('A｜安靜區單人隔間', 12);
+    for (let r = 0; r < 2; r++) { const row = document.createElement('div'); row.className = 'row'; seats.filter(s => s.group === 'A-r' + r).forEach(s => row.appendChild(seatBtn(s))); zA.appendChild(row); }
+    const zB = mk('B｜四人枱', 16);
+    const tw = document.createElement('div'); tw.className = 'tables';
+    for (let t = 0; t < 4; t++) { const tb = document.createElement('div'); tb.className = 'table'; seats.filter(s => s.group === 'B-t' + t).forEach(s => tb.appendChild(seatBtn(s))); tw.appendChild(tb); }
+    zB.appendChild(tw);
+    const zC = mk('C｜窗邊長枱', 12);
+    for (let r = 0; r < 2; r++) { const row = document.createElement('div'); row.className = 'row'; seats.filter(s => s.group === 'C-r' + r).forEach(s => row.appendChild(seatBtn(s))); zC.appendChild(row); }
+    plan.append(zA, zB, zC);
+  }
+
+  function render() {
+    const groups = findGroups();
+    const match = new Set(groups.flat().map(s => s.id));
+    const pick = state.pick != null && groups[state.pick] ? new Set(groups[state.pick].map(s => s.id)) : new Set();
+    seats.forEach(s => {
+      const b = document.getElementById('seat-' + s.id);
+      b.className = 'seat' + (s.status === 'taken' ? ' taken' : s.status === 'away' ? ' away' : '') + (match.has(s.id) ? ' match' : '') +
+        (pick.has(s.id) ? ' pick' : '') + (pick.size && !pick.has(s.id) ? ' dim' : '');
+      b.innerHTML = s.id + (s.plug ? '<span class="plug" aria-hidden="true">⚡</span>' : '');
+      const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離中' : match.has(s.id) ? '符合' : '空位';
+      b.setAttribute('aria-label', s.id + '，' + st + (s.plug ? '，有插座' : ''));
+    });
+    document.getElementById('count').textContent = groups.length;
+    document.getElementById('count-t').textContent = state.n === 1 ? '個符合的空位' : '組可 ' + state.n + ' 人坐在一起';
+    const ul = document.getElementById('results'); ul.innerHTML = '';
+    if (!groups.length) ul.innerHTML = '<li><p class="empty">暫時沒有完全符合的座位。可取消一個條件，或分開坐；這次「找不到」會計入需求統計。</p></li>';
+    groups.slice(0, 3).forEach((g, i) => {
+      const li = document.createElement('li');
+      const tags = [g.every(s => s.plug) ? '有插座' : '', g[0].quiet ? '安靜' : '可交談', g[0].single ? '單人' : ''].filter(Boolean).join('・');
+      li.innerHTML = '<div class="card"><div><div class="ids">' + groupLabel(g) + '</div><div class="zone">' + zoneName[g[0].zone] + '</div><div class="tags">' + tags + '</div>' +
+        '<button class="show" id="show-' + i + '">在平面圖顯示 →</button></div><div class="dist">約 ' + g.dist + ' 米</div></div>';
+      li.querySelector('.show').addEventListener('click', () => { state.pick = i; selectTab('t-map'); render(); });
+      ul.appendChild(li);
+    });
+    if (groups.length > 3) { const li = document.createElement('li'); li.innerHTML = '<p class="note">另有 ' + (groups.length - 3) + ' 組，可在平面圖查看。</p>'; ul.appendChild(li); }
+    if (state.seat) fillSheet();
+  }
+
+  const sheet = document.getElementById('sheet');
+  function openSheet(id) { state.seat = id; document.getElementById('toast').textContent = ''; fillSheet(); sheet.hidden = false; }
+  function fillSheet() {
+    const s = byId[state.seat];
+    const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離中（' + s.awayMin + ' 分鐘，30 分鐘內保留）' : '空位';
+    document.getElementById('sheet-h').textContent = s.id + '｜' + st;
+    document.getElementById('sheet-attrs').textContent = [zoneName[s.zone], s.plug ? '有插座' : '無插座', s.quiet ? '安靜' : '可交談', '距入口約 ' + s.dist + ' 米'].join('・');
+  }
+  document.getElementById('sheet-close').addEventListener('click', () => { sheet.hidden = true; state.seat = null; });
+  document.getElementById('rep-attr').addEventListener('click', () => { document.getElementById('toast').textContent = '已回報，會用作更正座位資料（示意）'; });
+  document.getElementById('rep-item').addEventListener('click', () => { document.getElementById('toast').textContent = '已轉交圖書館按現行規則處理（示意）'; });
+
+  const tabs = { 't-match': 'v-match', 't-map': 'v-map', 't-demand': 'v-demand' };
+  function selectTab(id) {
+    Object.entries(tabs).forEach(([t, v]) => { document.getElementById(t).setAttribute('aria-selected', t === id); document.getElementById(v).hidden = t !== id; });
+    if (id !== 't-map') { sheet.hidden = true; state.seat = null; }
+  }
+  Object.keys(tabs).forEach(t => document.getElementById(t).addEventListener('click', () => { if (t === 't-match') state.pick = null; selectTab(t); render(); }));
+
+  function toggle(id, key) { const el = document.getElementById(id); el.addEventListener('click', () => { state[key] = !state[key]; el.setAttribute('aria-pressed', state[key]); state.pick = null; render(); }); }
+  toggle('f-plug', 'plug'); toggle('f-quiet', 'quiet'); toggle('f-single', 'single');
+  const singleBtn = document.getElementById('f-single');
+  document.querySelectorAll('.n-btn').forEach(b => b.addEventListener('click', () => {
+    state.n = +b.dataset.n; state.pick = null;
+    document.querySelectorAll('.n-btn').forEach(x => x.setAttribute('aria-pressed', x === b));
+    // 單人隔間 only makes sense for one person.
+    singleBtn.disabled = state.n > 1;
+    if (state.n > 1 && state.single) { state.single = false; singleBtn.setAttribute('aria-pressed', 'false'); }
+    document.getElementById('single-hint').hidden = state.n === 1;
+    render();
+  }));
+
+  document.getElementById('bars').innerHTML = [['有插座', 64], ['2 人以上同坐', 43], ['安靜區', 37], ['單人隔間', 22], ['找不到符合', 19]].map(([k, v], i, a) =>
+    '<div class="bar"><span>' + k + '</span><div class="track"><div class="fill' + (i === a.length - 1 ? ' miss' : '') + '" style="width:' + v + '%"></div></div><span class="v">' + v + '%</span></div>').join('');
+
+  let tick = 0;
+  function step() {
+    tick++;
+    seats.forEach(s => { if (s.status === 'away' && ++s.awayMin >= 30) { s.status = 'free'; s.awayMin = 0; } });
+    const pool = seats.filter(s => s.status !== 'away');
+    const s = pool[(tick * 7 + 3) % pool.length];
+    if (s.status === 'taken') { if (tick % 3 === 0) { s.status = 'away'; s.awayMin = 1; } else s.status = 'free'; } else s.status = 'taken';
+    const t = new Date().toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    document.getElementById('clock').textContent = '即時 ' + t;
+    render();
+  }
+  buildPlan(); render(); setInterval(step, 5000);
+})();
+</script>
+
+</body>
+</html>
