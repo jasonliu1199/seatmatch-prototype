@@ -320,9 +320,12 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   function step() {
     tick++;
     seats.forEach(s => { if (s.status === 'away' && ++s.awayMin >= 30) { s.status = 'free'; s.awayMin = 0; } });
-    const pool = seats.filter(s => s.status !== 'away');
-    const s = pool[(tick * 7 + 3) % pool.length];
-    if (s.status === 'taken') { if (tick % 3 === 0) { s.status = 'away'; s.awayMin = 1; } else s.status = 'free'; } else s.status = 'taken';
+    // Alternate freeing and taking a seat so occupancy stays roughly level over time.
+    const pool = seats.filter(s => s.status === (tick % 2 ? 'taken' : 'free'));
+    if (pool.length) {
+      const s = pool[(tick * 7 + 3) % pool.length];
+      if (s.status === 'taken') { if (tick % 3 === 0) { s.status = 'away'; s.awayMin = 1; } else s.status = 'free'; } else s.status = 'taken';
+    }
     const t = new Date().toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     document.getElementById('clock').textContent = '即時 ' + t;
     render();
