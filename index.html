@@ -167,11 +167,12 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
     <div class="legend">
       <span><i class="sw" style="background:var(--blue)"></i>符合需要</span>
       <span><i class="sw" style="background:var(--blue-soft)"></i>其他空位</span>
-      <span><i class="sw" style="background:var(--away)"></i>暫離中</span>
+      <span><i class="sw" style="background:var(--away)"></i>暫離（有物品）</span>
       <span><i class="sw" style="background:var(--taken)"></i>有人</span>
       <span>⚡ 插座</span>
     </div>
     <div id="plan" style="display:flex; flex-direction:column; gap:12px;"></div>
+    <p class="note">每個座位一個感應節點：紅外線判斷有沒有人，枱底電容判斷枱面有沒有物品。細小物件（紙、筆）可能偵測不到，可點選座位一鍵回報。</p>
     <div class="entrance">入口 ↓</div>
   </main>
 
@@ -262,7 +263,7 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
       b.className = 'seat' + (s.status === 'taken' ? ' taken' : s.status === 'away' ? ' away' : '') + (match.has(s.id) ? ' match' : '') +
         (pick.has(s.id) ? ' pick' : '') + (pick.size && !pick.has(s.id) ? ' dim' : '');
       b.innerHTML = s.id + (s.plug ? '<span class="plug" aria-hidden="true">⚡</span>' : '');
-      const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離中' : match.has(s.id) ? '符合' : '空位';
+      const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離，有物品' : match.has(s.id) ? '符合' : '空位';
       b.setAttribute('aria-label', s.id + '，' + st + (s.plug ? '，有插座' : ''));
     });
     document.getElementById('count').textContent = groups.length;
@@ -277,7 +278,7 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
       li.querySelector('.show').addEventListener('click', () => { state.pick = i; selectTab('t-map'); render(); });
       ul.appendChild(li);
     });
-    if (groups.length > 3) { const li = document.createElement('li'); li.innerHTML = '<p class="note">另有 ' + (groups.length - 3) + ' 組，可在平面圖查看。</p>'; ul.appendChild(li); }
+    if (groups.length > 3) { const li = document.createElement('li'); li.innerHTML = '<p class="note">另有 ' + (groups.length - 3) + (state.n === 1 ? ' 個' : ' 組') + '，可在平面圖查看。</p>'; ul.appendChild(li); }
     if (state.seat) fillSheet();
   }
 
@@ -285,13 +286,18 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   function openSheet(id) { state.seat = id; document.getElementById('toast').textContent = ''; fillSheet(); sheet.hidden = false; }
   function fillSheet() {
     const s = byId[state.seat];
-    const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離中（' + s.awayMin + ' 分鐘，30 分鐘內保留）' : '空位';
+    const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離（無人，枱面有物品 ' + s.awayMin + ' 分鐘）' : '空位';
     document.getElementById('sheet-h').textContent = s.id + '｜' + st;
     document.getElementById('sheet-attrs').textContent = [zoneName[s.zone], s.plug ? '有插座' : '無插座', s.quiet ? '安靜' : '可交談', '距入口約 ' + s.dist + ' 米'].join('・');
   }
   document.getElementById('sheet-close').addEventListener('click', () => { sheet.hidden = true; state.seat = null; });
   document.getElementById('rep-attr').addEventListener('click', () => { document.getElementById('toast').textContent = '已回報，會用作更正座位資料（示意）'; });
-  document.getElementById('rep-item').addEventListener('click', () => { document.getElementById('toast').textContent = '已轉交圖書館按現行規則處理（示意）'; });
+  document.getElementById('rep-item').addEventListener('click', () => {
+    // A report fills the gap left by small items the capacitive sensor can miss.
+    const s = byId[state.seat];
+    if (s.status === 'free') { s.status = 'away'; s.awayMin = 0; render(); }
+    document.getElementById('toast').textContent = '已標記為「有物品」，暫不推薦此座位（示意）';
+  });
 
   const tabs = { 't-match': 'v-match', 't-map': 'v-map', 't-demand': 'v-demand' };
   function selectTab(id) {
@@ -319,7 +325,8 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   let tick = 0;
   function step() {
     tick++;
-    seats.forEach(s => { if (s.status === 'away' && ++s.awayMin >= 30) { s.status = 'free'; s.awayMin = 0; } });
+    // Items stay until the person comes back or clears the desk; the seat is never recommended meanwhile.
+    seats.forEach((s, i) => { if (s.status === 'away' && ++s.awayMin > 20 + (i * 7) % 40) { s.status = i % 2 ? 'taken' : 'free'; s.awayMin = 0; } });
     // Alternate freeing and taking a seat so occupancy stays roughly level over time.
     const pool = seats.filter(s => s.status === (tick % 2 ? 'taken' : 'free'));
     if (pool.length) {
