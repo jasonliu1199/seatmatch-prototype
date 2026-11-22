@@ -172,7 +172,7 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
       <span>⚡ 插座</span>
     </div>
     <div id="plan" style="display:flex; flex-direction:column; gap:12px;"></div>
-    <p class="note">每個座位一個感應節點：紅外線判斷有沒有人，枱底電容判斷枱面有沒有物品。細小物件（紙、筆）可能偵測不到，可點選座位一鍵回報。</p>
+    <p class="note">每個座位一個感應節點：紅外線判斷有沒有人，桌底電容判斷桌面有沒有物品。細小物件（紙、筆）可能偵測不到，可點選座位一鍵回報。</p>
     <div class="entrance">入口 ↓</div>
   </main>
 
@@ -213,7 +213,7 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   Object.entries({ A6: 12, B13: 22, C3: 5, C10: 18 }).forEach(([id, m]) => { byId[id].status = 'away'; byId[id].awayMin = m; });
 
   const state = { plug: true, quiet: false, single: false, n: 2, pick: null, seat: null };
-  const zoneName = { A: '安靜區單人隔間', B: '四人枱', C: '窗邊長枱' };
+  const zoneName = { A: '安靜區單人隔間', B: '四人桌', C: '窗邊長桌' };
 
   function okSeat(s) {
     return s.status === 'free' && (!state.plug || s.plug) && (!state.quiet || s.quiet) && (!state.single || s.single);
@@ -245,11 +245,11 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
     const mk = (title, count) => { const z = document.createElement('div'); z.className = 'zonebox'; z.innerHTML = '<div class="zone-h"><b>' + title + '</b><span>' + count + ' 位</span></div>'; return z; };
     const zA = mk('A｜安靜區單人隔間', 12);
     for (let r = 0; r < 2; r++) { const row = document.createElement('div'); row.className = 'row'; seats.filter(s => s.group === 'A-r' + r).forEach(s => row.appendChild(seatBtn(s))); zA.appendChild(row); }
-    const zB = mk('B｜四人枱', 16);
+    const zB = mk('B｜四人桌', 16);
     const tw = document.createElement('div'); tw.className = 'tables';
     for (let t = 0; t < 4; t++) { const tb = document.createElement('div'); tb.className = 'table'; seats.filter(s => s.group === 'B-t' + t).forEach(s => tb.appendChild(seatBtn(s))); tw.appendChild(tb); }
     zB.appendChild(tw);
-    const zC = mk('C｜窗邊長枱', 12);
+    const zC = mk('C｜窗邊長桌', 12);
     for (let r = 0; r < 2; r++) { const row = document.createElement('div'); row.className = 'row'; seats.filter(s => s.group === 'C-r' + r).forEach(s => row.appendChild(seatBtn(s))); zC.appendChild(row); }
     plan.append(zA, zB, zC);
   }
@@ -286,7 +286,7 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   function openSheet(id) { state.seat = id; document.getElementById('toast').textContent = ''; fillSheet(); sheet.hidden = false; }
   function fillSheet() {
     const s = byId[state.seat];
-    const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離（無人，枱面有物品 ' + s.awayMin + ' 分鐘）' : '空位';
+    const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離（無人，桌面有物品 ' + s.awayMin + ' 分鐘）' : '空位';
     document.getElementById('sheet-h').textContent = s.id + '｜' + st;
     document.getElementById('sheet-attrs').textContent = [zoneName[s.zone], s.plug ? '有插座' : '無插座', s.quiet ? '安靜' : '可交談', '距入口約 ' + s.dist + ' 米'].join('・');
   }
