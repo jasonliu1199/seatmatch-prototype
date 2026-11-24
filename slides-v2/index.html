@@ -690,7 +690,8 @@ body.hint #help { opacity: 1; }
     // Matches for "2 people + plug": two free plug seats side by side at the same table or counter.
     const match = new Set();
     if (matchOn) {
-      for (let t = 0; t < 3; t++) { const ok = pos.filter(s => s.table === t && s.st === 'free' && s.plug); if (ok.length >= 2) ok.slice(0, 2).forEach(s => match.add(s.id)); }
+      // Long tables: a pair must sit side by side or face each other.
+      for (let t = 0; t < 3; t++) { const T = pos.filter(s => s.table === t); const blk = LG3.tableBlocks(2).find(b => b.every(i => T[i].st === 'free' && T[i].plug)); if (blk) blk.forEach(i => match.add(T[i].id)); }
       const C = pos.filter(s => s.id[0] === 'C');
       for (let i = 0; i + 1 < C.length; i++) if (i !== 5 && [C[i], C[i + 1]].every(s => s.st === 'free' && s.plug)) { match.add(C[i].id); match.add(C[i + 1].id); i++; }
     }

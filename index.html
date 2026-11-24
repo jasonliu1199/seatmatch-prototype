@@ -257,7 +257,8 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
       list.sort((a, b) => a.idx - b.idx);
       // Partitioned single carrels are never offered to a group: neighbours there cannot sit together.
       if (state.n > 1 && list[0].single) return;
-      if (list[0].table) { const ok = list.filter(okSeat); if (ok.length >= state.n) found.push(ok.slice(0, state.n)); }
+      // Long tables: only offer seats that are next to or facing each other.
+      if (list[0].table) { const blk = LG3.tableBlocks(state.n).find(b => b.every(i => list[i] && okSeat(list[i]))); if (blk) found.push(blk.map(i => list[i])); }
       else for (let i = 0; i + state.n <= list.length; i++) { const w = list.slice(i, i + state.n); if (w.every(okSeat)) { found.push(w); i += state.n - 1; } }
     });
     found.forEach(g => g.dist = Math.min(...g.map(s => s.dist)));

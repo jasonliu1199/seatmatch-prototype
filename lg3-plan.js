@@ -72,5 +72,15 @@
   const pct = (x, y) => ({ left: (x - VB.x) / VB.w * 100 + '%', top: (y - VB.y) / VB.h * 100 + '%' });
   const dist = (x, y) => Math.round(Math.hypot(x - ENTRY[0], y - ENTRY[1]) / 9);
 
-  window.LG3 = { VB, seats, ENTRY, svg, pct, dist };
+  // Seats at one long table that count as "sitting together", by position index 0–5
+  // (0/2/4 = left side top→bottom, 1/3/5 = right side). Side-by-side blocks come first, then facing pairs.
+  const BLOCKS = {
+    1: [[0], [1], [2], [3], [4], [5]],
+    2: [[0, 2], [2, 4], [1, 3], [3, 5], [0, 1], [2, 3], [4, 5]],
+    3: [[0, 2, 4], [1, 3, 5], [0, 1, 2], [0, 1, 3], [2, 3, 4], [2, 3, 5]],
+    4: [[0, 1, 2, 3], [2, 3, 4, 5]]
+  };
+  const tableBlocks = n => BLOCKS[n] || [];
+
+  window.LG3 = { VB, seats, ENTRY, svg, pct, dist, tableBlocks };
 })();
