@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SeatMatch 按需配對尋位平台（ver2）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+:root {
+  /* colour tokens */
+  --ink: #16233B; --paper: #F6F4EF; --paper2: #ECE8DF; --card: #FFFDF8; --soft: #46505F; --mute: #6A7280;
+  --blue: #2F5D9E; --blue2: #4A77B4; --orange: #B8590F; --amber: #E8A33D; --line: #D8D3C8; --green: #2F7A4A; --disabled: #5A616E;
+  /* seat-state tokens: the same four colours in the app, the map and the demo */
+  --free: #2FA35A; --away: #E5B300; --taken: #D64545; --match: #2F5D9E;
+  /* type scale (px on the 1920 × 1080 stage) */
+  --fs-xs: 22px; --fs-sm: 24px; --fs-md: 28px; --fs-lg: 32px; --fs-xl: 46px; --fs-h2: 62px; --fs-display: 92px;
+  /* spacing, radius, elevation, motion */
+  --sp-1: 8px; --sp-2: 12px; --sp-3: 16px; --sp-4: 24px; --sp-5: 32px; --sp-6: 48px; --sp-7: 64px;
+  --r-s: 10px; --r-m: 16px; --r-l: 22px; --r-pill: 999px;
+  --shadow-1: 0 2px 6px rgba(22,35,59,.08); --shadow-2: 0 18px 40px rgba(22,35,59,.16);
+  --ease: cubic-bezier(.2,.7,.2,1); --dur-1: .25s; --dur-2: .6s; --dur-3: 1s;
+  --num: 'Space Grotesk', 'Noto Sans TC', 'PingFang TC', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; background: #0B1220; overflow: hidden; }
+body { font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; color: var(--ink); }
+#viewport { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+#stage { width: 1920px; height: 1080px; position: relative; transform-origin: center center; flex: none; }
+.slide { position: absolute; inset: 0; background: var(--paper); padding: 112px 128px 150px; display: flex; flex-direction: column; overflow: hidden; visibility: hidden; opacity: 0; transition: opacity .45s ease, visibility 0s linear .45s; }
+.slide.active { visibility: visible; opacity: 1; transition: opacity .45s ease; z-index: 2; }
+.slide.dark { background: var(--ink); color: var(--paper); }
+.slide.dark::before { content: ''; position: absolute; inset: -25%; z-index: -2; pointer-events: none;
+  background: radial-gradient(circle at 18% 28%, rgba(74,119,180,.55), transparent 38%), radial-gradient(circle at 82% 72%, rgba(232,163,61,.22), transparent 36%), radial-gradient(circle at 60% 10%, rgba(47,163,90,.16), transparent 30%);
+  animation: aurora 16s ease-in-out infinite alternate; }
+.slide.dark::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(520px circle at var(--mx, 70%) var(--my, 40%), rgba(255,255,255,.07), transparent 60%); }
+@keyframes aurora { to { transform: translate(6%, -4%) rotate(8deg) scale(1.08); } }
+.tilt { transition: transform .2s ease-out, box-shadow .2s; transform-style: preserve-3d; will-change: transform; }
+.tilt:hover { box-shadow: var(--shadow-2); }
+.slide.alt { background: var(--paper2); }
+/* faint floor-plan grid on light slides */
+.slide:not(.dark) { background-image: radial-gradient(rgba(22,35,59,.07) 1.4px, transparent 1.6px); background-size: 32px 32px; }
+/* circle-reveal transition: the next slide opens from where you are heading */
+.slide { isolation: isolate; transition: opacity .2s ease .5s, visibility 0s linear .7s; }
+.slide.active { transition: none; animation: reveal .75s cubic-bezier(.7,0,.2,1) both; }
+@keyframes reveal { from { clip-path: circle(0% at var(--cx, 90%) var(--cy, 90%)); } to { clip-path: circle(150% at var(--cx, 90%) var(--cy, 90%)); } }
+/* chapter tabs */
+#chapters { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; padding: 10px; z-index: 10; pointer-events: none; }
+#chapters span { font: 600 13px 'Noto Sans TC', sans-serif; color: #8C97A8; padding: 4px 12px; border-radius: 999px; background: rgba(11,18,32,.06); transition: background .3s, color .3s; }
+#chapters span.on { background: var(--ink); color: var(--amber); }
+#seatfield { position: absolute; inset: 0; width: 1920px; height: 1080px; z-index: -1; -webkit-mask-image: linear-gradient(100deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.35) 40%, #000 75%); mask-image: linear-gradient(100deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.35) 40%, #000 75%); }
+#occ { position: absolute; right: 128px; bottom: 124px; display: flex; gap: 22px; align-items: center; font-size: 24px; color: #C9D3E0; z-index: 1; }
+#occ .lg i { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 8px; }
+#occ b { color: var(--amber); font-size: 34px; }
+@keyframes blink { 50% { opacity: .25; } }
+
+.eyebrow { font-size: var(--fs-md); font-weight: 700; color: var(--orange); letter-spacing: 2px; margin-bottom: 18px; display: flex; align-items: center; gap: 14px; }
+/* brand motif: the three seat states as a marker before every section label */
+.eyebrow::before { content: ''; width: 54px; height: 14px; flex: none; background: radial-gradient(circle at 7px 7px, var(--free) 6px, transparent 6.5px), radial-gradient(circle at 27px 7px, var(--away) 6px, transparent 6.5px), radial-gradient(circle at 47px 7px, var(--taken) 6px, transparent 6.5px); }
+.dark .eyebrow { color: var(--amber); }
+h2 { font-size: 62px; font-weight: 900; line-height: 1.2; }
+.lead { font-size: 32px; line-height: 1.5; color: var(--soft); }
+.dark .lead { color: #C9D3E0; }
+.small { font-size: 24px; line-height: 1.45; color: var(--soft); }
+.foot { position: absolute; left: 128px; right: 128px; bottom: 54px; display: flex; justify-content: space-between; gap: 40px; font-size: var(--fs-xs); color: var(--mute); }
+.dark .foot { color: #8C97A8; }
+.card { background: var(--card); border: 2px solid var(--line); border-radius: var(--r-l); padding: 30px 36px; display: flex; flex-direction: column; gap: var(--sp-2); box-shadow: var(--shadow-1); }
+.card-h { font-size: 36px; font-weight: 700; line-height: 1.3; }
+.card-p { font-size: 27px; line-height: 1.5; color: var(--soft); }
+.tag { font-size: 24px; font-weight: 700; color: var(--orange); }
+.num { font-family: var(--num); font-weight: 700; line-height: 1; }
+.pill { display: inline-block; font-size: 26px; font-weight: 700; padding: 8px 20px; border-radius: 12px; }
+b.b { color: var(--blue); } b.o { color: var(--orange); }
+
+/* entrance animations: elements rest in their final state; .active replays the entrance */
+@keyframes rise { from { opacity: 0; transform: translateY(36px); } }
+@keyframes pop { 0% { opacity: 0; transform: scale(.4); } 70% { transform: scale(1.12); } }
+@keyframes growx { from { transform: scaleX(0); } }
+@keyframes fadein { from { opacity: 0; } }
+@keyframes slidein { from { opacity: 0; transform: translateX(-60px); } }
+@keyframes draw { from { stroke-dashoffset: var(--len, 1200); } }
+.active .a-rise { animation: rise .7s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--d, 0) * 130ms + 150ms); }
+.active .a-pop { animation: pop .55s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--d, 0) * 130ms + 150ms); }
+.active .a-grow { transform-origin: left center; animation: growx 1s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--d, 0) * 130ms + 250ms); }
+.active .a-fade { animation: fadein .8s ease both; animation-delay: calc(var(--d, 0) * 130ms + 150ms); }
+.active .a-slide { animation: slidein .6s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--d, 0) * 160ms + 150ms); }
+.active .a-draw { stroke-dasharray: var(--len, 1200); animation: draw 1.8s ease both; animation-delay: calc(var(--d, 0) * 130ms + 300ms); }
+
+/* cover */
+.cover-q { font-size: 46px; line-height: 1.45; color: #C9D3E0; }
+.cover-q .num { color: var(--amber); font-size: 60px; }
+.cover-title { font-size: 92px; font-weight: 900; line-height: 1.12; color: var(--paper); margin-top: 48px; }
+.cover-sub { font-size: 36px; color: #C9D3E0; margin-top: 26px; }
+.cover-meta { font-size: 27px; color: #8C97A8; margin-top: 56px; }
+.phone-img { border: 6px solid var(--paper); border-radius: 44px; object-fit: cover; object-position: top; box-shadow: 0 30px 60px rgba(0,0,0,.35); }
+.float { animation: float 5s ease-in-out infinite; }
+@keyframes float { 50% { transform: translateY(-14px); } }
+
+/* bars */
+.bar-label { font-size: 30px; font-weight: 500; margin-bottom: 12px; }
+.bar-line { display: flex; align-items: center; gap: 24px; }
+.bar { height: 74px; border-radius: 12px; }
+.bar-val { font-size: 60px; }
+
+/* comparison table */
+table.cmp { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 28px; }
+.cmp th, .cmp td { padding: 16px 18px; border-bottom: 2px solid var(--line); text-align: center; }
+.cmp th { font-size: 25px; color: var(--soft); font-weight: 700; }
+.cmp td:first-child, .cmp th:first-child { text-align: left; }
+.cmp tr.me td { background: #D6E0EE; font-weight: 700; }
+.cmp tr.me td:first-child { border-radius: 14px 0 0 14px; } .cmp tr.me td:last-child { border-radius: 0 14px 14px 0; }
+.ok { color: var(--green); font-weight: 900; font-size: 34px; display: inline-block; } .no { color: var(--disabled); } .na { color: var(--disabled); font-size: var(--fs-xs); }
+
+/* swot */
+.sw { transition: transform .25s, box-shadow .25s; cursor: default; }
+.sw:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 18px 36px rgba(22,35,59,.14); }
+
+/* solution demo */
+.demo-btn { font: inherit; font-size: 26px; font-weight: 700; min-height: 64px; padding: 14px 24px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; text-align: left; transition: background .2s, border-color .2s, color .2s; }
+.demo-btn.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.demo-btn .dot { display: inline-block; width: 20px; height: 20px; border-radius: 50%; margin-right: 12px; vertical-align: -2px; }
+#desk .person, #desk .item, #desk .cone, #desk .pad { transition: opacity .4s; }
+#desk .cone { animation: conepulse 1.6s ease-in-out infinite; }
+@keyframes conepulse { 50% { opacity: .05; } }
+.walker { offset-path: path("M120 400 C 200 300, 300 380, 380 290 S 560 330, 610 270"); offset-distance: 100%; }
+.active .walker { animation: walk 2.6s cubic-bezier(.45,0,.55,1) .4s both; }
+@keyframes walk { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+.active .nope { animation: pop .45s cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--t); transform-box: fill-box; transform-origin: center; }
+.packet { offset-path: path("M372 252 C 470 120, 560 120, 680 125 L 885 125 L 885 250"); animation: travel 1.6s linear infinite; }
+@keyframes travel { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+
+/* live map */
+.lmap { position: relative; border-radius: 18px; overflow: hidden; border: 2px solid var(--line); background: #FBF6E6; }
+.lmap svg { display: block; width: 100%; height: auto; }
+.mapstage { perspective: 2200px; }
+.lmap { transition: transform 1.2s cubic-bezier(.2,.7,.2,1), box-shadow 1.2s; transform-origin: 50% 60%; }
+.lmap.tilt3d { transform: rotateX(42deg) rotateZ(-9deg) scale(.94); box-shadow: 0 60px 80px rgba(22,35,59,.28); }
+.lmap.tilt3d .ldot { transform: translateY(-16px); box-shadow: 0 18px 8px -6px rgba(22,35,59,.45); }
+.lmap.drop .ldot { animation: drop .7s cubic-bezier(.3,1.4,.5,1) both; animation-delay: calc(var(--k) * 28ms + 500ms); }
+@keyframes drop { from { opacity: 0; transform: translateY(-120px); } }
+.lmap.drop .ldot.match { animation: ring 1.4s ease-out infinite; }
+.viewbtn { font: inherit; font-size: 24px; font-weight: 700; min-height: 52px; padding: 8px 20px; border-radius: var(--r-pill); border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+.ldot { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); background: var(--free); transition: background .5s, transform .3s; cursor: pointer; }
+.ldot.taken { background: var(--taken); } .ldot.away { background: var(--away); }
+.ldot.flash { transform: scale(1.5); }
+.ldot.match { background: var(--blue); width: 32px; height: 32px; margin: -16px 0 0 -16px; animation: ring 1.4s ease-out infinite; }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(47,93,158,.6); } 100% { box-shadow: 0 0 0 22px rgba(47,93,158,0); } }
+.stat { display: flex; align-items: center; gap: 16px; font-size: 27px; white-space: nowrap; }
+.stat .sq { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.stat .num { font-size: 56px; min-width: 70px; }
+.filter { font: inherit; font-size: 26px; font-weight: 700; min-height: 60px; padding: 12px 22px; border-radius: 999px; border: 2px solid var(--line); background: var(--card); cursor: pointer; color: var(--ink); }
+.filter.on { background: var(--blue); border-color: var(--blue); color: var(--paper); }
+.tip { position: absolute; transform: translate(-50%, -130%); background: var(--ink); color: var(--paper); font-size: 22px; padding: 8px 14px; border-radius: 10px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; }
+.tip.show { opacity: 1; }
+
+/* journey */
+.shot-col { width: 270px; display: flex; flex-direction: column; gap: 10px; }
+.shot-col .h { font-size: 28px; font-weight: 700; }
+.shot-col .p { font-size: 23px; color: var(--soft); line-height: 1.35; min-height: 62px; }
+.shot { width: 270px; height: 584px; object-fit: cover; object-position: top; border: 3px solid var(--ink); border-radius: 28px; background: #FBFAF6; }
+.iphone { width: 390px; height: 800px; border: 12px solid var(--ink); border-radius: 56px; overflow: hidden; background: #FBFAF6; box-shadow: 0 30px 60px rgba(22,35,59,.25); position: relative; }
+.iphone iframe { width: 375px; height: 812px; border: 0; transform: scale(.973); transform-origin: top left; }
+.print-only { display: none; }
+
+/* callback */
+.cb { display: grid; grid-template-columns: 700px 110px 1fr; align-items: center; }
+.cb .card { flex-direction: row; align-items: center; gap: 22px; padding: 20px 30px; position: relative; }
+.cb .strike { position: absolute; left: 24px; right: 24px; top: 50%; height: 4px; background: var(--orange); transform-origin: left; opacity: .7; }
+.active .cb .strike { animation: growx .5s ease both; animation-delay: calc(var(--d) * 330ms + 700ms); }
+.cb .res { font-size: 32px; font-weight: 700; color: var(--blue); }
+.cb .res small { font-size: 24px; color: var(--soft); font-weight: 500; }
+
+/* plan */
+.chev { flex: 1; color: var(--paper); font-size: 30px; font-weight: 700; padding: 24px 0 24px 60px; margin-left: -22px; clip-path: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%, 6% 50%); }
+.chev:first-child { margin-left: 0; padding-left: 36px; clip-path: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%); }
+.chev:last-child { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 6% 50%); }
+
+/* hierarchy helpers */
+.mega { font-family: var(--num); font-weight: 700; line-height: .95; letter-spacing: -2px; }
+.stat-chip { display: flex; flex-direction: column; gap: 6px; }
+.stat-chip .num { font-size: 96px; line-height: 1; }
+.stat-chip span:last-child { font-size: 28px; font-weight: 700; color: var(--soft); }
+.dark .stat-chip span:last-child { color: #C9D3E0; }
+.tagrow { display: flex; gap: 16px; flex-wrap: wrap; }
+.tagrow span { font-size: 28px; font-weight: 700; padding: 12px 24px; border-radius: var(--r-pill); background: var(--card); border: 2px solid var(--line); }
+.avatar { width: 96px; height: 96px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 900; }
+/* cue lines: readable prompts that follow the script */
+.cues { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.cues li { font-size: 30px; line-height: 1.4; font-weight: 500; color: var(--ink); padding-left: 34px; position: relative; }
+.cues li::before { content: ''; position: absolute; left: 4px; top: .5em; width: 14px; height: 14px; border-radius: 50%; background: var(--c, var(--blue)); }
+.cues li b { color: var(--orange); }
+.dark .cues li { color: #E6EBF2; }
+.dark .cues li b { color: var(--amber); }
+/* funding line on the roadmap cards */
+.fund { margin-top: auto; padding-top: 16px; border-top: 2px solid var(--line); font-family: var(--num); font-size: 44px; font-weight: 700; color: var(--orange); line-height: 1.15; }
+.fund span { display: block; font-family: 'Noto Sans TC', sans-serif; font-size: 24px; color: var(--soft); font-weight: 700; }
+/* journey steps */
+.step-col { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.step-h { display: flex; align-items: center; gap: 14px; font-size: 36px; font-weight: 900; }
+.step-n { width: 52px; height: 52px; border-radius: 50%; background: var(--blue); color: var(--paper); display: flex; align-items: center; justify-content: center; font-family: var(--num); font-size: 30px; }
+.step-p { font-size: 27px; font-weight: 500; color: var(--ink); }
+.shot2 { width: 280px; height: 560px; object-fit: cover; object-position: top; border: 4px solid var(--ink); border-radius: 32px; background: #FBFAF6; box-shadow: var(--shadow-1); margin-top: 6px; }
+/* plan timeline */
+.tl { display: grid; grid-template-columns: repeat(4, 1fr); position: relative; margin-top: 44px; }
+.tl::before { content: ''; position: absolute; left: 12.5%; right: 12.5%; top: 30px; height: 6px; background: var(--line); border-radius: 3px; }
+.tl-i { display: flex; flex-direction: column; align-items: center; gap: 14px; position: relative; text-align: center; }
+.tl-i b { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--num); font-size: 30px; color: var(--paper); box-shadow: 0 0 0 8px var(--paper); }
+.tl-i span { font-size: 30px; font-weight: 700; }
+/* budget donut */
+.donut circle { fill: none; stroke-width: 56; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.pie .wedge { transform-box: view-box; transform-origin: 330px 330px; }
+.pie .wedge:hover { transform: scale(1.04); transition: transform .2s; }
+.leg { display: flex; justify-content: space-between; align-items: center; font-size: 30px; padding: 18px 0; border-bottom: 2px solid #2A3A56; }
+.leg .num { font-size: 40px; color: var(--amber); }
+.leg .sw2 { display: inline-block; width: 22px; height: 22px; border-radius: 6px; margin-right: 14px; vertical-align: -2px; }
+.cta { font-size: 42px; font-weight: 900; color: var(--amber); line-height: 1.4; }
+
+/* appendix */
+table.tbl { width: 100%; border-collapse: collapse; font-size: 23px; }
+.tbl th, .tbl td { border: 2px solid #0002; padding: 9px 14px; text-align: left; }
+.tbl th { background: #E2DDD2; }
+.tbl td.r { text-align: right; font-family: var(--num); }
+.refs { font-size: 21px; line-height: 1.45; color: var(--soft); padding-left: 28px; }
+.refs li { margin-bottom: 6px; }
+
+/* chrome: progress, nav, notes */
+#progress { position: fixed; left: 0; bottom: 0; height: 5px; background: var(--amber); transition: width .4s; z-index: 10; }
+#nav { position: fixed; right: 18px; bottom: 16px; display: flex; gap: 8px; align-items: center; z-index: 10; font: 600 15px var(--num); color: #9AA6B8; opacity: .25; transition: opacity .2s; }
+#nav:hover { opacity: 1; }
+#nav button { font: inherit; background: #1C2A44; color: #DCE3EE; border: 0; border-radius: 8px; min-width: 44px; min-height: 44px; padding: 6px 12px; cursor: pointer; }
+button:focus-visible { outline: 4px solid var(--amber); outline-offset: 3px; }
+.num, .stat .num, #n-timer { font-variant-numeric: tabular-nums; }
+#notes { position: fixed; left: 0; right: 0; bottom: 0; max-height: 42vh; overflow: auto; background: rgba(11,18,32,.96); color: #E6EBF2; padding: 18px 28px 26px; font-size: 20px; line-height: 1.6; z-index: 20; display: none; }
+#notes.show { display: block; }
+#notes .bar { display: flex; justify-content: space-between; font: 600 16px var(--num); color: var(--amber); margin-bottom: 8px; }
+#help { position: fixed; top: 14px; right: 18px; font-size: 13px; color: #6F7C90; z-index: 10; opacity: 0; transition: opacity .4s; }
+body.hint #help { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .slide *, .slide { animation: none !important; }
+  .slide { transition: opacity .2s linear, visibility 0s linear .2s !important; transform: none !important; }
+  .packet { display: none; }
+  .lmap { transition: none; }
+}
+@media print {
+  @page { size: 1920px 1080px; margin: 0; }
+  html, body { height: auto; overflow: visible; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #viewport { position: static; display: block; }
+  #stage { transform: none !important; height: auto; }
+  .slide { position: relative; visibility: visible; opacity: 1; height: 1080px; page-break-after: always; break-after: page; }
+  .slide *, .slide { animation: none !important; transition: none !important; }
+  #progress, #nav, #notes, #help, .no-print { display: none !important; }
+  .print-only { display: block; }
+  .phone-img, .iphone, .card, .shot2, .a-pop { box-shadow: none !important; }
+  .slide { transform: none !important; clip-path: none !important; }
+  #chapters { display: none !important; }
+  #seatfield { opacity: .28; -webkit-mask-image: none; mask-image: none; }
+  .lmap { transform: none !important; box-shadow: none !important; } .lmap .ldot { transform: none !important; box-shadow: 0 2px 6px rgba(0,0,0,.35) !important; }
+  .slide.dark::before, .slide.dark::after { animation: none !important; }
+}
+</style>
+</head>
+<body class="hint">
+<div id="viewport"><div id="stage">
+
+<!-- 1 cover -->
+<section data-chapter="開場" role="group" aria-roledescription="slide" aria-label="第 1 頁" class="slide dark" id="cover" data-notes="（約15秒）大家好！圖書館有超過三千個座位，可是只要館內有大約一千五百人，同學就已經很難找到座位。一半的座位還在，為甚麼還是找不到？">
+<canvas id="seatfield" width="1920" height="1080" aria-hidden="true"></canvas>
+<div style="display:flex; gap:110px; align-items:center; height:100%; position:relative;">
+<div style="flex:1;">
+<p class="a-rise" style="font-size:52px; font-weight:700; color:#C9D3E0; line-height:1.25;"><span class="mega" style="font-size:120px; color:var(--amber);" data-count="3000">3,000</span> 個座位<br><span class="mega" style="font-size:120px; color:var(--taken);" data-count="1500">1,500</span> 人就「滿」了</p>
+<h1 class="cover-title a-rise" style="--d:3; margin-top:56px;">科大圖書館「按需配對」<br>即時尋位平台</h1>
+<p class="cover-sub a-rise" style="--d:4; font-size:38px;">用手機即時找到：<b style="color:var(--amber)">適合你</b>＋<b style="color:var(--amber)">真正空著</b>的座位</p>
+<p class="cover-meta a-rise" style="--d:5; margin-top:36px;">SeatMatch 創業團隊｜劉澤城（創辦人）｜LANG1422 評估二B 第二組</p>
+</div>
+<div class="a-pop" style="--d:4"><img class="phone-img float" style="width:330px; height:714px;" src="img/app-map.jpg" alt="SeatMatch 原型：LG3 平面圖上以圓點顯示座位狀態"></div>
+</div>
+<div class="foot"><span>HKUST Library（2025）</span><span></span></div>
+</section>
+
+<!-- 2 team -->
+<section data-chapter="開場" role="group" aria-roledescription="slide" aria-label="第 2 頁" class="slide alt" data-notes="（約25秒）我是 SeatMatch「按需配對」尋位平台的創辦人兼技術負責人劉澤城，來自計算機科學系。負責感應節點和系統設計，已經做出手機原型。另外三位成員分別負責產品軟件、研究數據和營運財務。接下來為大家介紹這個方案。">
+<p class="eyebrow">團隊</p>
+<h2>四個人，四種專長</h2>
+<div style="display:flex; gap:56px; margin-top:56px; align-items:center;">
+<div class="card a-slide" style="width:640px; flex-direction:row; gap:36px; align-items:center; border:3px solid var(--blue); padding:40px;">
+<div class="avatar" style="width:170px; height:170px; font-size:84px; background:var(--blue); color:var(--paper);">劉</div>
+<div><p class="tag">創辦人・技術</p><p style="font-size:56px; font-weight:900;">劉澤城</p><p style="font-size:28px; color:var(--soft); margin-top:6px;">計算機科學</p><ul class="cues" style="margin-top:14px;"><li style="font-size:26px">感應節點・韌體・系統設計</li><li style="font-size:26px">已做出手機原型</li></ul></div>
+</div>
+<div style="flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:28px;">
+<div class="a-slide" style="--d:1; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center;"><div class="avatar" style="background:#DCE5F2; color:var(--blue);">周</div><p style="font-size:34px; font-weight:900;">周芷璡</p><p class="tag">產品・軟件</p><p style="font-size:24px; color:var(--soft);">網頁平台・配對功能</p></div>
+<div class="a-slide" style="--d:2; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center;"><div class="avatar" style="background:#F3E3CC; color:var(--orange);">蔡</div><p style="font-size:34px; font-weight:900;">蔡睿瑩</p><p class="tag">研究・數據</p><p style="font-size:24px; color:var(--soft);">實地計時・準確度驗證</p></div>
+<div class="a-slide" style="--d:3; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center;"><div class="avatar" style="background:#E6E1D6; color:var(--ink);">何</div><p style="font-size:34px; font-weight:900;">何子俊</p><p class="tag">營運・財務</p><p style="font-size:24px; color:var(--soft);">預算・聯絡圖書館</p></div>
+</div>
+</div>
+<div style="display:flex; gap:96px; margin-top:72px;">
+<div class="stat-chip a-rise" style="--d:5"><span class="num" style="color:var(--blue)" data-count="60">60</span><span>份問卷</span></div>
+<div class="stat-chip a-rise" style="--d:6"><span class="num" style="color:var(--blue)" data-count="3">3</span><span>個訪談</span></div>
+<div class="stat-chip a-rise" style="--d:7"><span class="num" style="color:var(--blue)" data-count="1">1</span><span>個手機原型</span></div>
+</div>
+</section>
+
+<!-- 3 pain -->
+<section data-chapter="痛點" role="group" aria-roledescription="slide" aria-label="第 3 頁" class="slide" data-notes="（約30秒）我們的調查有六十份問卷。百分之四十點四的同學只能找到不合需要的座位，比完全找不到的還要多。有人要插座，有人要和同伴坐，有人要安靜。六成多同學還經常看見有物品、沒有人的座位。結果大部分人要兜五到十五分鐘，找不到就回宿舍。">
+<p class="eyebrow">痛點</p>
+<h2>不是沒有座位，是找不到<span style="color:var(--orange)">合適</span>的座位</h2>
+<div style="display:flex; gap:72px; margin-top:44px; align-items:center;">
+<div style="width:860px; display:flex; flex-direction:column; gap:30px;">
+<div class="a-rise"><p class="mega" style="font-size:200px; color:var(--orange);" data-count="40.4" data-dec="1" data-suffix="%">40.4%</p><p style="font-size:34px; font-weight:700; margin-top:10px;">只找到不合需要的座位</p></div>
+<ul class="cues a-rise" style="--d:3;"><li style="--c:var(--orange)">比完全找不到（28.8%）<b>還多</b></li><li style="--c:var(--orange)">合適因人而異：插座／同伴相鄰／安靜</li></ul>
+<div style="display:flex; gap:72px; margin-top:20px;">
+<div class="stat-chip a-rise" style="--d:4"><span class="num" style="color:var(--ink); font-size:64px;">63.5%</span><span>常見有物品、無人</span></div>
+<div class="stat-chip a-rise" style="--d:5"><span class="num" style="color:var(--ink); font-size:64px;">5–15′</span><span>找位；找不到就回宿舍</span></div>
+</div>
+</div>
+<svg class="a-fade" style="--d:1" width="720" height="452" viewBox="0 0 700 440" role="img" aria-label="示意圖：同學兜圈找座位，看到的空位不是放了物品就是沒有插座">
+<rect width="720" height="452" rx="24" fill="#FFFDF8" stroke="#D8D3C8" stroke-width="2"/>
+<g fill="#C9CDD3"><rect x="60" y="60" width="70" height="70" rx="12"/><rect x="150" y="60" width="70" height="70" rx="12"/><rect x="330" y="60" width="70" height="70" rx="12"/><rect x="510" y="60" width="70" height="70" rx="12"/><rect x="150" y="160" width="70" height="70" rx="12"/><rect x="240" y="160" width="70" height="70" rx="12"/><rect x="420" y="160" width="70" height="70" rx="12"/></g>
+<g fill="#F6DE8A"><rect x="240" y="60" width="70" height="70" rx="12"/><rect x="60" y="160" width="70" height="70" rx="12"/><rect x="330" y="160" width="70" height="70" rx="12"/></g>
+<g fill="#B8590F"><path d="M258 82 h34 v26 h-34z M266 82 v-8 h18 v8"/><path d="M78 182 h34 v26 h-34z M86 182 v-8 h18 v8"/><path d="M348 182 h34 v26 h-34z M356 182 v-8 h18 v8"/></g>
+<rect x="420" y="60" width="70" height="70" rx="12" fill="#D3EED9"/><rect x="510" y="160" width="70" height="70" rx="12" fill="#D3EED9"/>
+<text x="455" y="104" font-size="24" text-anchor="middle" fill="#46505F">無插座</text><text x="545" y="204" font-size="24" text-anchor="middle" fill="#46505F">太吵</text>
+<path class="a-draw" style="--len:620; --d:2" d="M120 400 C 200 300, 300 380, 380 290 S 560 330, 610 270" stroke="#B8590F" stroke-width="5" stroke-dasharray="14 12" fill="none"/>
+<circle class="walker" r="13" fill="#B8590F" stroke="#FFFDF8" stroke-width="4"/>
+<g class="nope" style="--t:1.0s"><circle cx="275" cy="150" r="20" fill="#16233B"/><text x="275" y="159" font-size="26" text-anchor="middle" fill="#fff" font-weight="700">✗</text></g>
+<g class="nope" style="--t:1.7s"><circle cx="455" cy="40" r="20" fill="#16233B"/><text x="455" y="49" font-size="26" text-anchor="middle" fill="#fff" font-weight="700">✗</text></g>
+<g class="nope" style="--t:2.4s"><circle cx="545" cy="140" r="20" fill="#16233B"/><text x="545" y="149" font-size="26" text-anchor="middle" fill="#fff" font-weight="700">✗</text></g>
+<circle cx="110" cy="360" r="22" fill="#16233B"/><rect x="92" y="384" width="36" height="44" rx="14" fill="#16233B"/>
+<g class="a-pop" style="--d:6; transform-origin:190px 300px;"><circle cx="190" cy="300" r="34" fill="#B8590F"/><text x="190" y="316" font-size="44" font-weight="700" text-anchor="middle" fill="#FFFDF8">?</text></g>
+<text class="a-fade" style="--d:8" x="400" y="412" font-size="26" font-weight="700" fill="#B8590F">兜了 10 分鐘…</text>
+</svg>
+</div>
+<div class="foot"><span>第二組（2026），n＝52</span><span></span></div>
+</section>
+
+<!-- 4 competitors -->
+<section data-chapter="痛點" role="group" aria-roledescription="slide" aria-label="第 4 頁" class="slide alt" data-notes="（約25秒）現有的辦法：科大只顯示全館人數；其他大學和商業感應器，都只回答「哪裏有空位」。沒有人回答「哪個位適合我」，也沒有人分辨有物品、沒有人的座位。我們兩樣都做到，而相鄰空位搜尋，正是問卷裏最受支持的措施，百分之八十五。">
+<p class="eyebrow">現狀與競爭對手</p>
+<h2>只有我們回答「哪個位<span style="color:var(--blue)">適合我</span>」</h2>
+<table class="cmp" style="margin-top:40px;">
+<tr class="a-fade"><th style="width:34%">現有做法</th><th>即時空位</th><th>偵測物品佔位</th><th>按插座／安靜篩選</th><th>多人相鄰配對</th></tr>
+<tr class="a-slide" style="--d:1"><td>科大：入口人流儀表板</td><td>只有全館人數</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td></tr>
+<tr class="a-slide" style="--d:2"><td>科大：空位地圖（2026 年計劃）</td><td><span class="ok">✓</span></td><td class="na">未提及</td><td class="na">未提及</td><td class="na">未提及</td></tr>
+<tr class="a-slide" style="--d:3"><td>理大、教大、嶺南：座位感應</td><td><span class="ok">✓</span></td><td class="na">未提及</td><td class="na">未提及</td><td class="na">未提及</td></tr>
+<tr class="a-slide" style="--d:4"><td>商業感應器（如 Milesight）</td><td><span class="ok">✓</span></td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td></tr>
+<tr class="me a-slide" style="--d:6"><td>SeatMatch（本項目）</td><td><span class="ok a-pop" style="--d:8">✓</span></td><td><span class="ok a-pop" style="--d:9">✓</span></td><td><span class="ok a-pop" style="--d:10">✓</span></td><td><span class="ok a-pop" style="--d:11">✓</span></td></tr>
+</table>
+<div class="a-rise" style="--d:12; margin-top:44px; display:flex; align-items:center; gap:28px;"><span class="mega" style="font-size:96px; color:var(--blue);">85%</span><span style="font-size:34px; font-weight:700;">問卷最想要：相鄰空位搜尋</span></div>
+<ul class="cues a-rise" style="--d:13; margin-top:18px;"><li>其他做法只答「有沒有位」，沒有人分辨「有物品、無人」</li></ul>
+<div class="foot"><span>各館公告（2025–2026）；Milesight（n.d.）；第二組（2026）</span><span></span></div>
+</section>
+
+<!-- 5 swot -->
+<section data-chapter="痛點" role="group" aria-roledescription="slide" aria-label="第 5 頁" class="slide" data-notes="（約25秒）用 SWOT 來看：優勢是按需配對加物品偵測，市場獨有；劣勢是細小物件可能漏測，我們用一鍵回報補足；機會是科大已計劃做空位地圖；威脅是學校直接買商業系統，但它做不到按需配對。為甚麼非我們不可？我們有第一手數據、有感應器經驗，而且自己就是用家。">
+<p class="eyebrow">SWOT</p>
+<h2>為甚麼是我們？</h2>
+<div style="display:flex; gap:40px; margin-top:44px;">
+<div style="width:1120px; display:grid; grid-template-columns:1fr 1fr; gap:22px;">
+<div class="card sw a-pop" style="background:#E3EBF5; border-color:var(--blue); gap:10px;"><p class="mega" style="font-size:72px; color:var(--blue);">S</p><p style="font-size:32px; font-weight:700;">配對＋物品偵測，市場獨有<br>每座約 HK$290・已有手機原型</p></div>
+<div class="card sw a-pop" style="--d:1; background:#F6EBDD; border-color:var(--orange); gap:10px;"><p class="mega" style="font-size:72px; color:var(--orange);">W</p><p style="font-size:32px; font-weight:700;">細件漏測 → 一鍵回報<br>需安裝批准 → 先工作台測試</p></div>
+<div class="card sw a-pop" style="--d:2; background:#E5F0E8; border-color:var(--green); gap:10px;"><p class="mega" style="font-size:72px; color:var(--green);">O</p><p style="font-size:32px; font-weight:700;">科大 2026 計劃空位地圖<br>校園 LoRaWAN 免費</p></div>
+<div class="card sw a-pop" style="--d:3; background:#ECE8DF; border-color:var(--mute); gap:10px;"><p class="mega" style="font-size:72px; color:var(--soft);">T</p><p style="font-size:32px; font-weight:700;">學校直接買商業系統<br>私隱疑慮 → 不拍攝、不記身份</p></div>
+</div>
+<div class="card a-slide" style="--d:5; flex:1; background:var(--ink); border-color:var(--ink); gap:24px; justify-content:center;">
+<p style="font-size:30px; font-weight:700; color:var(--amber);">非我們不可</p>
+<p style="font-size:44px; font-weight:900; color:var(--paper);">第一手數據<br><span style="font-size:26px; font-weight:500; color:#C9D3E0;">知道同學真正要甚麼</span></p>
+<p style="font-size:44px; font-weight:900; color:var(--paper);">感應器經驗<br><span style="font-size:26px; font-weight:500; color:#C9D3E0;">做過多次電容感應實作</span></p>
+<p style="font-size:44px; font-weight:900; color:var(--paper);">我們就是用家<br><span style="font-size:26px; font-weight:500; color:#C9D3E0;">快速收集意見、修改</span></p>
+</div>
+</div>
+</section>
+
+<!-- 6 solution (interactive sensor demo) -->
+<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 6 頁" class="slide" data-notes="（約30秒）我們的方案：每個座位裝一個自研感應節點。紅外線判斷有沒有人，桌面下的電容感應片判斷有沒有物品。【示範：按「有人坐下」→紅；「離開，留下物品」→黃；「清空桌面」→綠】有物品、沒有人，就是暫離，不會推薦。數據經免費的校園網絡傳到手機。節點不拍攝、不認人，零件每座約二百九十元。——追問時補充：問卷顯示非影像感應接受度 41.7%，攝影加 AI 只有 21.7%。">
+<p class="eyebrow">方案</p>
+<h2>一個座位，一個感應節點</h2>
+<div style="display:flex; gap:52px; margin-top:34px; align-items:center;">
+<svg id="desk" class="a-fade" width="1000" height="560" viewBox="0 0 1000 560" role="img" aria-label="互動示意：桌底紅外線感應器偵測有沒有人，電容感應片偵測桌面物品，節點經校園 LoRaWAN 把狀態傳到學生手機">
+<rect width="1000" height="560" rx="24" fill="#FFFDF8" stroke="#D8D3C8" stroke-width="2"/>
+<path class="cone" d="M278 322 L170 480 L386 480 Z" fill="#2F5D9E" opacity=".16"/>
+<g class="person"><circle cx="150" cy="250" r="34" fill="#16233B"/><path d="M110 470 v-120 q0 -50 40 -55 q40 5 40 55 v40 h70 v80" fill="#16233B"/></g>
+<rect x="60" y="250" width="440" height="22" rx="4" fill="#8A6A4A"/>
+<rect class="pad" x="70" y="272" width="420" height="9" fill="#E8A33D"/>
+<rect x="80" y="281" width="16" height="200" fill="#8A6A4A"/><rect x="464" y="281" width="16" height="200" fill="#8A6A4A"/>
+<g class="item"><path d="M210 250 l18 -54 h112 l18 54 z" fill="#C9CDD3"/><rect x="228" y="192" width="112" height="6" fill="#16233B"/><rect x="380" y="228" width="72" height="22" rx="4" fill="#2F5D9E"/></g>
+<rect x="250" y="288" width="56" height="34" rx="6" fill="#16233B"/><circle cx="278" cy="305" r="9" fill="#E8A33D"/>
+<rect x="324" y="288" width="44" height="34" rx="6" fill="#16233B"/><line x1="360" y1="288" x2="372" y2="256" stroke="#16233B" stroke-width="4"/>
+<text x="515" y="292" font-size="25" fill="#B8590F" font-weight="700">電容感應片</text><text x="515" y="324" font-size="22" fill="#46505F">桌面有沒有物品</text>
+<text x="515" y="410" font-size="25" fill="#2F5D9E" font-weight="700">紅外線</text><text x="515" y="442" font-size="22" fill="#46505F">有沒有人</text><line x1="508" y1="404" x2="310" y2="316" stroke="#2F5D9E" stroke-width="3"/>
+
+<path d="M372 252 C 470 120, 560 120, 680 125 L 885 125 L 885 250" stroke="#2F5D9E" stroke-width="3" stroke-dasharray="8 8" fill="none" opacity=".5"/>
+<circle class="packet" r="9" fill="#2F5D9E"/>
+<rect x="660" y="88" width="104" height="74" rx="14" fill="#DCE5F2" stroke="#2F5D9E" stroke-width="3"/><text x="712" y="120" font-size="21" text-anchor="middle" font-weight="700">校園</text><text x="712" y="146" font-size="21" text-anchor="middle" font-weight="700">LoRaWAN</text>
+<rect x="810" y="250" width="150" height="270" rx="24" fill="#FFFDF8" stroke="#16233B" stroke-width="6"/>
+<text x="885" y="290" font-size="20" text-anchor="middle" fill="#46505F">座位 C3</text>
+<circle id="ph-dot" cx="885" cy="350" r="34" fill="#2FA35A"/>
+<text id="ph-txt" x="885" y="425" font-size="26" text-anchor="middle" font-weight="700" fill="#16233B">空位</text>
+<text id="ph-sub" x="885" y="460" font-size="19" text-anchor="middle" fill="#46505F">會推薦</text>
+</svg>
+<div style="flex:1; display:flex; flex-direction:column; gap:18px;">
+<button class="demo-btn" data-state="taken"><span class="dot" style="background:var(--taken)"></span>有人坐下</button>
+<button class="demo-btn" data-state="away"><span class="dot" style="background:var(--away)"></span>離開，留下物品</button>
+<button class="demo-btn" data-state="free"><span class="dot" style="background:var(--free)"></span>清空桌面</button>
+<p style="margin-top:20px; font-size:40px; font-weight:900;">有物品・無人 <span style="color:var(--orange)">＝不推薦</span></p>
+<ul class="cues"><li>紅外線：有沒有人</li><li>電容：桌面有沒有物品</li><li>校園網絡 → 手機</li><li>不拍攝・每座約 HK$290</li></ul>
+</div>
+</div>
+</section>
+
+<!-- 7 live LG3 map -->
+<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 7 頁" class="slide alt" data-notes="（約20秒）這是圖書館 LG3 的真實平面圖，也是我們的試點區。綠色可以坐，黃色是有物品的暫離，紅色有人，數字即時更新。【點「2 人＋插座」】符合的座位會變成藍色閃動，一眼就知道去哪裏。">
+<p class="eyebrow">LG3 試點區即時地圖</p>
+<h2>一眼看到：哪裏可以坐、哪裏只是「暫離」</h2>
+<div style="display:flex; gap:48px; align-items:center; margin-top:34px;">
+<div class="mapstage" style="width:1340px; flex:none;"><div class="lmap a-fade" id="lmap"><div id="lplan"></div><div class="tip" id="ltip"></div></div></div>
+<div style="flex:1; display:flex; flex-direction:column; gap:30px;">
+<div aria-live="polite" style="display:contents"><div class="stat a-rise" style="--d:2"><span class="sq" style="background:var(--free)"></span><span class="num" id="n-free">0</span>可以坐</div>
+<div class="stat a-rise" style="--d:3"><span class="sq" style="background:var(--away)"></span><span class="num" id="n-away">0</span>暫離（有物品）</div>
+<div class="stat a-rise" style="--d:4"><span class="sq" style="background:var(--taken)"></span><span class="num" id="n-taken">0</span>有人</div></div>
+<ul class="cues a-rise" style="--d:5;"><li style="--c:var(--blue); font-size:28px">篩選 → 符合變藍</li></ul>
+<button class="filter a-rise no-print" style="--d:5; align-self:flex-start;" id="f-match">2 人＋插座</button>
+<button class="viewbtn a-rise no-print" style="--d:6; align-self:flex-start;" id="f-view">切換 2D／3D</button>
+</div>
+<div class="foot"><span>平面圖：HKUST Library（重畫）・模擬數據</span><span></span></div>
+</section>
+
+<!-- 8 journey with live prototype -->
+<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 8 頁" class="slide" data-notes="（約25秒）如果你是同學：第一步，選兩個人、要插座，即時列出可以坐在一起的空位；第二步，平面圖上藍點就是符合的座位，直接走過去；第三步，黃點是放了物品的座位，不會推薦，細件可以一鍵回報。評審現在就可以掃碼試用。">
+<p class="eyebrow">如果你是同學：怎樣使用</p>
+<h2>三步，找到你的座位</h2>
+<div style="display:grid; grid-template-columns:repeat(3, 1fr) 300px; gap:40px; margin-top:30px; align-items:start;">
+<div class="step-col a-rise" style="--d:1"><div class="step-h"><span class="step-n">1</span>選需要</div><p class="step-p">2 人＋插座 → 列出相鄰空位</p><img class="shot2" src="img/app-match.jpg" alt="原型截圖：選擇 2 人及有插座"></div>
+<div class="step-col a-rise" style="--d:2"><div class="step-h"><span class="step-n">2</span>看地圖</div><p class="step-p">藍點＝符合，直接走過去</p><img class="shot2" src="img/app-map.jpg" alt="原型截圖：LG3 平面圖上的座位圓點"></div>
+<div class="step-col a-rise" style="--d:3"><div class="step-h"><span class="step-n">3</span>避開暫離</div><p class="step-p">黃點有物品 → 不推薦</p><img class="shot2" src="img/app-away.jpg" alt="原型截圖：座位 C3 暫離，桌面有物品"></div>
+<div class="a-pop" style="--d:5; align-self:center; display:flex; flex-direction:column; align-items:center; gap:18px; background:var(--card); border:2px solid var(--line); border-radius:var(--r-l); padding:30px 20px; box-shadow:var(--shadow-1);">
+<img src="img/qr.png" style="width:220px; height:220px;" alt="QR 碼：jasonliu1199.github.io/seatmatch-prototype">
+<p style="font-size:36px; font-weight:900;">掃碼試用</p>
+<p style="font-size:20px; color:var(--blue); text-align:center; font-weight:700;">jasonliu1199.github.io/<br>seatmatch-prototype</p>
+</div>
+</div>
+</section>
+
+<!-- 9 callback -->
+<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 9 頁" class="slide alt" data-notes="（約15秒）回到一開始的痛點：座位不合需要，用按需配對；有物品沒有人，不再推薦；兜圈找位，平面圖帶路；圖書館不知道缺甚麼座位，交給匿名需求數據。">
+<p class="eyebrow">用完之後</p>
+<h2>四個痛點，逐一解決</h2>
+<div style="display:flex; flex-direction:column; gap:22px; margin-top:48px;">
+<div class="cb a-slide" style="--d:0"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">40.4%</span><span class="card-p">只找到不合需要的座位</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">按人數、插座、安靜配對</p></div>
+<div class="cb a-slide" style="--d:1"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">63.5%</span><span class="card-p">常見「有物品、無人」的座位</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">電容偵測物品，暫離不推薦</p></div>
+<div class="cb a-slide" style="--d:2"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">5–15′</span><span class="card-p">兜圈找位的時間</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">LG3 平面圖直接帶路</p></div>
+<div class="cb a-slide" style="--d:3"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">?</span><span class="card-p">圖書館不知道缺哪種座位</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">匿名需求數據，規劃座位種類</p></div>
+</div>
+</section>
+
+<!-- 10 plan -->
+<section data-chapter="計劃" role="group" aria-roledescription="slide" aria-label="第 10 頁" class="slide" data-notes="（約25秒）第一階段是四個月、四十個座位的試點：先研發和實地計時做基線，再安裝、考試期試行、評估。目標是找位時間減三成；不合需要由四成降到兩成五以下；桌上物品十件至少認出七到八件。評估時同一時段計時，對比用和不用平台的同學。——追問時補充：「認出率」即召回率，物品真的在桌上時，感應器偵測到的比例；有人偵測九成、使用三百人次、滿意度七成，都是自訂目標。">
+<p class="eyebrow">項目詳情：目標、措施、步驟</p>
+<h2>第一階段：4 個月，40 個座位</h2>
+<div class="tl">
+<div class="tl-i a-pop" style="--d:0"><b style="background:var(--blue)">1</b><span>研發測試＋實地計時</span></div>
+<div class="tl-i a-pop" style="--d:1"><b style="background:var(--blue2)">2</b><span>安裝 40 個節點</span></div>
+<div class="tl-i a-pop" style="--d:2"><b style="background:var(--orange)">3</b><span>考試期試行</span></div>
+<div class="tl-i a-pop" style="--d:3"><b style="background:var(--ink)">4</b><span>評估、交報告</span></div>
+</div>
+<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:32px; margin-top:46px;">
+<div class="card a-pop" style="--d:5"><p class="num" style="font-size:110px; color:var(--blue);">−<span data-count="30">30</span>%</p><p style="font-size:32px; font-weight:700;">找位時間</p><p style="font-size:26px; color:var(--soft);">中位數，對比基線</p></div>
+<div class="card a-pop" style="--d:6"><p class="num" style="font-size:110px; color:var(--blue);">&lt;<span data-count="25">25</span>%</p><p style="font-size:32px; font-weight:700;">不合需要座位</p><p style="font-size:26px; color:var(--soft);">現在 40.4%</p></div>
+<div class="card a-pop" style="--d:7"><p class="num" style="font-size:110px; color:var(--blue);">≥<span data-count="75">75</span>%</p><p style="font-size:32px; font-weight:700;">桌上物品認得出</p><p style="font-size:26px; color:var(--soft);">10 件認出 7–8 件（SMU 約 6 件）</p></div>
+</div>
+<div class="tagrow a-rise" style="--d:9; margin-top:40px; align-items:center;"><b style="font-size:30px; margin-right:6px;">評估：</b><span>同時段實地計時</span><span>用 vs 不用平台</span><span>前後問卷</span></div>
+<div class="foot"><span>SMU 研究：物品偵測約 63%（Nguyen et al., 2013）</span><span></span></div>
+</section>
+
+<!-- 11 future -->
+<section data-chapter="計劃" role="group" aria-roledescription="slide" aria-label="第 11 頁" class="slide alt" data-notes="（約25秒）這次只申請第一階段的四萬一千元，先證明方案有效。成功後，第二年推廣到全館三千多個座位，連安裝、推廣和維護約一百一十萬，到時再申請。第三年起帶到大灣區其他大學，靠年費和外部投資自負盈虧。最終目標：讓每一位大學生都能馬上找到適合自己的座位。——追問時：一百一十萬＝零件三千個乘二百九十約八十七萬、安裝約十萬、平台擴展五萬、推廣兩萬、首年維護三萬；全部為初步估算。">
+<p class="eyebrow">未來發展</p>
+<h2>由 40 個座位開始，走向每一間大學圖書館</h2>
+<svg style="margin-top:30px;" width="1664" height="110" viewBox="0 0 1664 110"><path d="M40 60 H1620" stroke="#C9CDD3" stroke-width="10" stroke-linecap="round"/><path class="a-draw" style="--len:1580" d="M40 60 H1620" stroke="#2F5D9E" stroke-width="10" stroke-linecap="round"/>
+<g class="a-pop" style="--d:2; transform-origin:280px 60px"><circle cx="280" cy="60" r="32" fill="#2F5D9E"/><text x="280" y="71" font-size="30" font-weight="700" text-anchor="middle" fill="#F6F4EF">1</text></g>
+<g class="a-pop" style="--d:5; transform-origin:832px 60px"><circle cx="832" cy="60" r="32" fill="#4A77B4"/><text x="832" y="71" font-size="30" font-weight="700" text-anchor="middle" fill="#F6F4EF">2</text></g>
+<g class="a-pop" style="--d:8; transform-origin:1384px 60px"><circle cx="1384" cy="60" r="32" fill="#B8590F"/><text x="1384" y="71" font-size="30" font-weight="700" text-anchor="middle" fill="#F6F4EF">3</text></g></svg>
+<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:32px; margin-top:8px;">
+<div class="card a-rise" style="--d:2; border:3px solid var(--blue);"><p class="tag" style="color:var(--blue)">階段一｜現在申請</p><p class="mega" style="font-size:100px; color:var(--blue);">40</p><p style="font-size:32px; font-weight:700;">LG3 試點座位・4 個月</p><p class="fund">約 4.1 萬<span>本次申請</span></p></div>
+<div class="card a-rise" style="--d:5;"><p class="tag">階段二｜第 2 年</p><p class="mega" style="font-size:100px;">3,000+</p><p style="font-size:32px; font-weight:700;">科大全館</p><p class="fund">約 110 萬<span>試點成功後再申請</span></p></div>
+<div class="card a-rise" style="--d:8;"><p class="tag">階段三｜第 3 年起</p><p class="mega" style="font-size:100px; color:var(--orange);">GBA</p><p style="font-size:32px; font-weight:700;">大灣區高校</p><p class="fund">年費收入＋外部投資<span>自負盈虧</span></p></div>
+</div>
+<p class="a-rise" style="--d:9; margin-top:22px; font-size:28px; font-weight:500; color:var(--ink);">全館約 110 萬＝零件 87 萬＋安裝 10 萬＋平台擴展 5 萬＋推廣 2 萬＋首年維護 3 萬（商業方案零件已要 165 萬）</p>
+<div class="a-rise" style="--d:10; margin-top:26px; display:flex; gap:28px; align-items:center;">
+<span class="pill" style="background:var(--ink); color:var(--amber);">最終目標</span>
+<p style="font-size:32px; font-weight:700;">讓每一位大學生走進圖書館，都能馬上找到適合自己的座位</p>
+</div>
+</section>
+
+<!-- 12 budget -->
+<section data-chapter="預算" role="group" aria-roledescription="slide" aria-label="第 12 頁" class="slide dark" data-notes="（約20秒）第一階段，我們申請約四萬一千元：一半多用在建置四十個節點和網頁，約四成用在研發驗證，評估只佔百分之五；網絡、電腦和軟件都是現有資源。三千個座位，不應該在一千五百人時就滿了。請投資我們，讓每一位同學都能馬上找到適合自己的座位。謝謝！——評審問明細時：零件每個節點約二百九十元乘四十二個，約一萬二千；人工按學生助理時薪六十八元計；合共 41,208 元。">
+<p class="eyebrow">資金需求｜第一階段（試點）</p>
+<h2 style="color:var(--paper)">申請約 <span class="num" style="color:var(--amber)">HK$4.1 萬</span>，錢用在哪裏？</h2>
+<div style="display:flex; gap:80px; align-items:center; margin-top:10px;">
+<svg class="pie" width="900" height="680" viewBox="0 -10 900 680" role="img" aria-label="預算圓餅圖：試點建置約 57%，研發約 38%，成效評估約 5%"><path class="wedge a-pop" style="--d:0" d="M330 330 L604.2 424.4 A290 290 0 1 1 121.5 128.5 Z" fill="#E8A33D" stroke="#16233B" stroke-width="6"/><path class="wedge a-pop" style="--d:2" d="M330 330 L121.5 128.5 A290 290 0 0 1 619.9 337.7 Z" fill="#F3CF8E" stroke="#16233B" stroke-width="6"/><path class="wedge a-pop" style="--d:4" d="M330 330 L619.9 337.7 A290 290 0 0 1 604.2 424.4 Z" fill="#8C97A8" stroke="#16233B" stroke-width="6"/><g class="a-fade" style="--d:3"><text x="242" y="467" text-anchor="middle" font-size="64" font-weight="700" fill="#16233B" font-family="Space Grotesk, Noto Sans TC, sans-serif">57%</text><text x="242" y="513" text-anchor="middle" font-size="34" font-weight="700" fill="#16233B">試點建置</text></g><g class="a-fade" style="--d:5"><text x="395" y="169" text-anchor="middle" font-size="64" font-weight="700" fill="#16233B" font-family="Space Grotesk, Noto Sans TC, sans-serif">38%</text><text x="395" y="215" text-anchor="middle" font-size="34" font-weight="700" fill="#16233B">研發</text></g><g class="a-fade" style="--d:7"><line x1="623" y1="383" x2="674" y2="392" stroke="#8C97A8" stroke-width="3"/><text x="686" y="404" font-size="34" font-weight="700" fill="#F6F4EF">5% 成效評估</text></g></svg>
+<div style="flex:1; display:flex; flex-direction:column; gap:22px;">
+<ul class="cues a-rise" style="--d:5;"><li style="--c:#E8A33D">建置約 2.3 萬：40 個節點、網頁</li><li style="--c:#F3CF8E">研發約 1.6 萬：測試、驗證</li><li style="--c:#8C97A8">網絡・電腦・軟件＝現有資源</li><li style="--c:var(--free)">回報：試點數據＋需求報告</li><li style="--c:var(--blue)">之後全館約 110 萬，試點成功再申請</li></ul>
+<p class="cta a-rise" style="--d:7; font-size:44px; margin-top:20px;">請投資我們，讓每一位同學<br>都能馬上找到適合自己的座位。</p>
+</div>
+</div>
+</section>
+
+<!-- A2 tech options -->
+<section data-chapter="附頁" role="group" aria-roledescription="slide" aria-label="第 13 頁" class="slide alt" data-notes="附頁：評審問為何不用鏡頭／商業感應器時才翻。">
+<p class="eyebrow">附頁｜技術選型</p>
+<h2>比較四種方式，選用自研紅外線＋電容節點</h2>
+<table class="tbl" style="margin-top:30px; font-size:25px;">
+<tr><th>方案</th><th>私隱</th><th>準確度</th><th>成本／限制</th><th>結論</th></tr>
+<tr><td>鏡頭＋AI</td><td>問卷只有 21.7% 接受</td><td>高，認得到物品</td><td>私隱爭議大</td><td>不採用</td></tr>
+<tr><td>商業紅外線感應器</td><td>只知有人／無人</td><td>廠商標稱約 95%</td><td>約 HK$550／位；看不到物品</td><td>不採用</td></tr>
+<tr style="background:#D6E0EE"><td>自研紅外線＋桌底電容</td><td>只知有人、有物品</td><td>SMU 研究：有人召回 98%；物品精確 97%、召回 63%</td><td>零件約 HK$290／位；細件易漏，須校準</td><td><b>採用</b></td></tr>
+<tr><td>Wi-Fi 裝置估算</td><td>匿名</td><td>只知樓層人數</td><td>做不到座位層面</td><td>不足以配對</td></tr>
+</table>
+<div style="display:flex; gap:28px; margin-top:30px;">
+<div class="card" style="flex:1"><p class="tag">技術已有先例</p><p class="card-p">SMU 圖書館以桌底電容感應（MPR121）部署至 90 個座位；理大、教大、嶺南已用座位感應</p></div>
+<div class="card" style="flex:1"><p class="tag">研究目標</p><p class="card-p">加大感應片，結合紅外線及時間判斷，物品召回率高於 SMU 基準 63%；以人手觀察驗證</p></div>
+</div>
+<div class="foot"><span>資料來源：Nguyen et al.（2013）；Yahaya et al.（2016）；Milesight（n.d.-a, n.d.-b）；第二組（2026）</span><span></span></div>
+</section>
+
+<!-- A3 references -->
+<section data-chapter="附頁" role="group" aria-roledescription="slide" aria-label="第 14 頁" class="slide alt" data-notes="參考資料頁。">
+<p class="eyebrow">參考資料</p>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:10px;">
+<ul class="refs">
+<li>第二組（2026）。《香港科技大學圖書館座位使用與改善需求調查報告》。LANG1422 評估二A。</li>
+<li>Adafruit. (n.d.). <i>12-key capacitive touch sensor breakout – MPR121.</i> https://www.adafruit.com/product/1982</li>
+<li>Education University of Hong Kong Library. (2026, May 20). <i>Library seat finder.</i> https://www.lib.eduhk.hk/?p=24512</li>
+<li>HKUST Information Technology Services Office. (n.d.). <i>IoT communication.</i> https://itso.hkust.edu.hk/services/it-infrastructure/smart-campus-infrastructure/iot-communication</li>
+<li>HKUST Library. (2025, February 11). <i>Check library occupancy live!</i> https://library.hkust.edu.hk/news-events/news/pplcounting-2025</li>
+<li>HKUST Library. (2026). <i>Job vacancies – student helpers.</i> https://library.hkust.edu.hk/about-us/job-vacancies/job-vacancies-student-helpers</li>
+<li>Hong Kong University of Science and Technology Library. (2026). <i>Library user survey 2026.</i> https://library.hkust.edu.hk/about-us/users-surveys/library-user-survey-2026</li>
+<li>HKUST Library. (n.d.). <i>Library floor plans</i> [LG3 floor plan]. https://lbcone.hkust.edu.hk/floorplans</li>
+</ul>
+<ul class="refs">
+<li>Milesight. (n.d.-a). <i>Smart space management transforms Lingnan University Library.</i> https://www.milesight.com/iot/success-stories/iot-library-space-management-lingnan-university</li>
+<li>Milesight. (n.d.-b). <i>VS340/VS341 desk &amp; seat occupancy sensor.</i> https://www.milesight.com/company/blog/desk-and-seat-occupancy-sensor-vs34x</li>
+<li>Nguyen, H. H., Hettiarachchi, G., Lee, Y., &amp; Balan, R. K. (2013). <i>Small scale deployment of seat occupancy detectors.</i> IEEE International Conference on Industrial Technology.</li>
+<li>Pao Yue-kong Library. (2026, September 1). <i>Carrel occupancy sensors now in use.</i> https://www.lib.polyu.edu.hk/publications/?p=3650</li>
+<li>RAKwireless. (n.d.). <i>WisDuo LPWAN module RAK3172.</i> https://store.rakwireless.com/products/wisduo-lpwan-module-rak3172</li>
+<li>SparkFun. (n.d.). <i>Panasonic PIR motion sensor – EKMB1107112.</i> https://www.sparkfun.com/products/23946</li>
+<li>Yahaya, N., Sangaram, D., Salihin, M. A., &amp; Tay, A. (2016). SMU Libraries: "Sensory" in library spaces. <i>Singapore Journal of Library and Information Management, 45.</i></li>
+</ul>
+</div>
+<div class="foot"><span>生成式人工智能使用說明見下一頁</span><span></span></div>
+</section>
+
+<!-- A4 AI statement -->
+<section data-chapter="附頁" role="group" aria-roledescription="slide" aria-label="第 15 頁" class="slide alt" data-notes="AI 使用說明頁。">
+<p class="eyebrow">生成式人工智能使用說明</p>
+<p class="lead" style="margin-top:20px; color:var(--ink);">本項目使用生成式人工智能協助：整理評分要求、構思項目架構、搜尋公開資料、研究文獻及硬件參考價格、編寫原型程式及簡報網頁初稿。</p>
+<p class="lead" style="margin-top:24px; color:var(--ink);">所有數據已與小組調查報告、原始網頁及論文核對；感應節點設計、預算估算及最終內容由申請人負責。</p>
+<div class="foot"><span></span><span></span></div>
+</section>
+
+</div></div>
+
+<div id="chapters" aria-hidden="true"></div>
+<div id="progress"></div>
+<div id="nav"><button id="prev" aria-label="上一頁">‹</button><span id="pg">1 / 1</span><button id="next" aria-label="下一頁">›</button><button id="nbtn" title="講者備註（N）">備註</button></div>
+<div id="notes"><div class="bar"><span id="n-pg"></span><span id="n-timer">00:00</span></div><div id="n-txt"></div></div>
+<div id="help">← → 翻頁　N 備註＋計時　T 重設計時　F 全螢幕</div>
+
+<script src="../lg3-plan.js"></script>
+<script>
+(function () {
+  const slides = [...document.querySelectorAll('.slide')];
+  const stage = document.getElementById('stage');
+  let cur = 0;
+  const PRINT = location.search.includes('print') || matchMedia('print').matches;
+
+  function fit() {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    stage.style.transform = 'scale(' + s + ')';
+  }
+  addEventListener('resize', fit); fit();
+
+  // Count-up numbers when a slide opens; the markup already holds the final value for print.
+  function countUp(el) {
+    const target = parseFloat(el.dataset.count), dec = +(el.dataset.dec || 0), suf = el.dataset.suffix || '';
+    const t0 = performance.now(), dur = 1100;
+    (function tick(t) {
+      const k = Math.min(1, (t - t0) / dur), v = target * (1 - Math.pow(1 - k, 3));
+      el.textContent = v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + suf;
+      if (k < 1) requestAnimationFrame(tick);
+    })(t0);
+  }
+
+  const chapNames = [...new Set(slides.map(s => s.dataset.chapter))];
+  document.getElementById('chapters').innerHTML = chapNames.map(c => '<span>' + c + '</span>').join('');
+  function go(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    slides[i].style.setProperty('--cx', i >= cur ? '92%' : '8%');
+    slides[i].style.setProperty('--cy', i >= cur ? '92%' : '50%');
+    slides[cur].classList.remove('active');
+    slides[cur].setAttribute('aria-hidden', 'true');
+    slides[i].removeAttribute('aria-hidden');
+    document.querySelectorAll('#chapters span').forEach(sp => sp.classList.toggle('on', sp.textContent === slides[i].dataset.chapter));
+    void slides[i].offsetWidth; // restart the CSS entrance animations
+    slides[i].classList.add('active');
+    cur = i;
+    if (!PRINT) slides[i].querySelectorAll('[data-count]').forEach(countUp);
+    document.getElementById('pg').textContent = (i + 1) + ' / ' + slides.length;
+    document.getElementById('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+    document.getElementById('n-pg').textContent = '第 ' + (i + 1) + ' 頁';
+    document.getElementById('n-txt').textContent = slides[i].dataset.notes || '';
+    history.replaceState(null, '', '#' + (i + 1));
+    if (!timerStart) timerStart = Date.now();
+    document.dispatchEvent(new CustomEvent('slidechange', { detail: slides[i] }));
+  }
+
+  let timerStart = 0;
+  setInterval(() => {
+    if (!timerStart) return;
+    const s = Math.floor((Date.now() - timerStart) / 1000);
+    const el = document.getElementById('n-timer');
+    el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    el.style.color = s > 330 ? '#FF7A7A' : s > 270 ? '#F3CF8E' : '';
+  }, 500);
+
+  addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(slides.length - 1);
+    else if (e.key === 'n' || e.key === 'N') document.getElementById('notes').classList.toggle('show');
+    else if (e.key === 't' || e.key === 'T') timerStart = Date.now();
+    else if (e.key === 'f' || e.key === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  });
+  document.getElementById('prev').onclick = () => go(cur - 1);
+  document.getElementById('next').onclick = () => go(cur + 1);
+  document.getElementById('nbtn').onclick = () => document.getElementById('notes').classList.toggle('show');
+  let tx = null;
+  addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchend', e => { if (tx == null) return; const dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 60) go(cur + (dx < 0 ? 1 : -1)); tx = null; });
+  setTimeout(() => document.body.classList.remove('hint'), 4000);
+
+  /* ---------- sensor demo ---------- */
+  const desk = document.getElementById('desk');
+  const states = {
+    taken: { person: 1, item: 1, color: '#D64545', txt: '有人', sub: '不推薦' },
+    away: { person: 0, item: 1, color: '#E5B300', txt: '暫離', sub: '有物品・不推薦' },
+    free: { person: 0, item: 0, color: '#2FA35A', txt: '空位', sub: '會推薦' }
+  };
+  let demoAuto = true, demoIdx = 0;
+  function setDemo(k) {
+    const s = states[k];
+    desk.querySelector('.person').style.opacity = s.person;
+    desk.querySelector('.cone').style.display = s.person ? '' : 'none';
+    desk.querySelector('.item').style.opacity = s.item;
+    desk.querySelector('.pad').style.opacity = s.item ? 1 : .35;
+    document.getElementById('ph-dot').setAttribute('fill', s.color);
+    document.getElementById('ph-txt').textContent = s.txt;
+    document.getElementById('ph-sub').textContent = s.sub;
+    document.querySelectorAll('.demo-btn').forEach(b => b.classList.toggle('on', b.dataset.state === k));
+  }
+  document.querySelectorAll('.demo-btn').forEach(b => b.addEventListener('click', () => { demoAuto = false; setDemo(b.dataset.state); }));
+  setDemo('away');
+  setInterval(() => { if (demoAuto && desk.closest('.slide').classList.contains('active')) setDemo(['taken', 'away', 'free'][demoIdx++ % 3]); }, 2600);
+
+  /* ---------- live LG3 map ---------- */
+  // Seats and the redrawn LG3 plan are shared with the app (../lg3-plan.js).
+  const pos = LG3.seats.map(q => ({ id: q.id, p: [q.x, q.y], plug: q.plug, table: q.zone === 'B' ? q.table : undefined }));
+  document.getElementById('lplan').innerHTML = LG3.svg();
+  const lmap = document.getElementById('lmap'), tip = document.getElementById('ltip');
+  const init = { A1:'taken',A3:'taken',A7:'taken',A10:'taken',A5:'away',B1:'taken',B2:'taken',B3:'taken',B5:'taken',B7:'taken',B8:'taken',B11:'taken',B14:'taken',B16:'taken',B13:'away',C1:'taken',C2:'taken',C3:'away',C5:'taken',C9:'taken',C10:'away',C12:'taken' };
+  pos.forEach(s => {
+    s.st = init[s.id] || 'free';
+    const d = document.createElement('div'); d.className = 'ldot'; s.el = d;
+    const pp = LG3.pct(s.p[0], s.p[1]); d.style.left = pp.left; d.style.top = pp.top;
+    d.addEventListener('mouseenter', () => { tip.textContent = s.id + '｜' + ({ free: '空位', away: '暫離（有物品）', taken: '有人' })[s.st] + (s.plug ? '・有插座' : ''); tip.style.left = d.style.left; tip.style.top = d.style.top; tip.classList.add('show'); });
+    d.addEventListener('mouseleave', () => tip.classList.remove('show'));
+    lmap.appendChild(d);
+  });
+  pos.forEach((q, k) => q.el.style.setProperty('--k', k));
+  // 3D view: pins drop onto a tilted plan whenever the slide opens
+  const mslide = lmap.closest('.slide');
+  document.addEventListener('slidechange', e => {
+    if (e.detail !== mslide || PRINT) return;
+    lmap.classList.remove('drop'); void lmap.offsetWidth; lmap.classList.add('drop', 'tilt3d');
+  });
+  document.getElementById('f-view').addEventListener('click', () => lmap.classList.toggle('tilt3d'));
+  let matchOn = false;
+  function paint() {
+    const c = { free: 0, away: 0, taken: 0 };
+    // Matches for "2 people + plug": two free plug seats side by side at the same table or counter.
+    const match = new Set();
+    if (matchOn) {
+      for (let t = 0; t < 3; t++) { const ok = pos.filter(s => s.table === t && s.st === 'free' && s.plug); if (ok.length >= 2) ok.slice(0, 2).forEach(s => match.add(s.id)); }
+      const C = pos.filter(s => s.id[0] === 'C');
+      for (let i = 0; i + 1 < C.length; i++) if (i !== 5 && [C[i], C[i + 1]].every(s => s.st === 'free' && s.plug)) { match.add(C[i].id); match.add(C[i + 1].id); i++; }
+    }
+    pos.forEach(s => { c[s.st]++; s.el.className = 'ldot ' + (match.has(s.id) ? 'match' : s.st === 'free' ? '' : s.st); });
+    document.getElementById('n-free').textContent = c.free;
+    document.getElementById('n-away').textContent = c.away;
+    document.getElementById('n-taken').textContent = c.taken;
+  }
+  document.getElementById('f-match').addEventListener('click', e => { matchOn = !matchOn; e.currentTarget.classList.toggle('on', matchOn); paint(); });
+  let tick = 0;
+  setInterval(() => {
+    if (!lmap.closest('.slide').classList.contains('active')) return;
+    tick++;
+    // Alternate freeing and filling seats so the floor stays roughly half full.
+    const from = tick % 2 ? ['taken', 'away'] : ['free'];
+    const pool = pos.filter(s => from.includes(s.st));
+    const s = pool[(tick * 7 + 3) % pool.length];
+    s.st = s.st === 'free' ? (tick % 3 ? 'taken' : 'away') : 'free';
+    s.el.classList.add('flash'); setTimeout(() => s.el.classList.remove('flash'), 350);
+    paint();
+  }, 1400);
+  paint();
+
+  /* ---------- cover: 3,000 seats fill up to 1,500 people ---------- */
+  const cv = document.getElementById('seatfield'), cx2 = cv.getContext('2d');
+  const COLS = 75, ROWS = 40, GAP = 25.6, R = 5.2, N = COLS * ROWS;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const order = [...Array(N).keys()].sort(() => rnd() - .5);
+  const kind = new Uint8Array(N); // 0 free, 1 taken, 2 item, no person
+  order.slice(0, 1500).forEach((k, j) => kind[k] = j % 5 === 0 ? 2 : 1);
+  const rank = new Uint16Array(N); order.forEach((k, j) => rank[k] = j);
+  const COL = ['rgba(47,163,90,.55)', '#D64545', '#E5B300'];
+  function drawField(t) {
+    cx2.clearRect(0, 0, 1920, 1080);
+    const filled = Math.round(1500 * t);
+    for (let k = 0; k < N; k++) {
+      const x = 22 + (k % COLS) * GAP, y = 28 + Math.floor(k / COLS) * GAP;
+      cx2.fillStyle = rank[k] < filled ? COL[kind[k]] : 'rgba(47,163,90,.35)';
+      cx2.beginPath(); cx2.arc(x, y, R, 0, 7); cx2.fill();
+    }
+    
+  }
+  const coverSlide = cv.closest('.slide');
+  let fieldRun = 0;
+  function runField() {
+    const id = ++fieldRun, t0 = performance.now();
+    (function f(t) { if (id !== fieldRun) return; const k = Math.min(1, (t - t0) / 3200); drawField(1 - Math.pow(1 - k, 2)); if (k < 1) requestAnimationFrame(f); })(t0);
+  }
+  drawField(1);
+  document.addEventListener('slidechange', e => { if (e.detail === coverSlide && !PRINT && !matchMedia('(prefers-reduced-motion: reduce)').matches) runField(); });
+
+  /* ---------- spotlight on dark slides, tilt on cards ---------- */
+  addEventListener('mousemove', e => {
+    const sl = slides[cur]; if (!sl.classList.contains('dark')) return;
+    const r = sl.getBoundingClientRect();
+    sl.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+    sl.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+  });
+  document.querySelectorAll('.sw, .card.a-slide, .card.a-rise').forEach(c => {
+    c.classList.add('tilt');
+    c.addEventListener('mousemove', e => { const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; c.style.transform = `perspective(900px) rotateY(${x * 8}deg) rotateX(${-y * 8}deg) translateZ(6px)`; });
+    c.addEventListener('mouseleave', () => { c.style.transform = ''; });
+  });
+  slides.forEach(sl => sl.setAttribute('aria-hidden', 'true'));
+  const start = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1)) || 1) - 1));
+  if (location.search.includes('print')) slides.forEach(s => s.classList.add('active'));
+  go(start); timerStart = 0;
+})();
+</script>
+</body>
+</html>
