@@ -351,13 +351,13 @@ body.hint #help { opacity: 1; }
 </section>
 
 <!-- 5 swot -->
-<section data-chapter="痛點" role="group" aria-roledescription="slide" aria-label="第 5 頁" class="slide" data-notes="（約25秒）用 SWOT 來看：優勢是按需配對加物品偵測，市場獨有；劣勢是細小物件可能漏測，我們用一鍵回報補足；機會是科大已計劃做空位地圖；威脅是學校直接買商業系統，但它做不到按需配對。為甚麼非我們不可？我們有第一手數據、有感應器經驗，而且自己就是用家。">
+<section data-chapter="痛點" role="group" aria-roledescription="slide" aria-label="第 5 頁" class="slide" data-notes="（約25秒）用 SWOT 來看：優勢是按需配對加物品偵測，市場獨有；劣勢是細小物件可能漏測，我們用一鍵回報補足；另外我們不能清走物品，只能超時回報館方；機會是科大已計劃做空位地圖；威脅是學校直接買商業系統，但它做不到按需配對。為甚麼非我們不可？我們有第一手數據、有感應器經驗，而且自己就是用家。">
 <p class="eyebrow">SWOT</p>
 <h2>為甚麼是我們？</h2>
 <div style="display:flex; gap:40px; margin-top:44px;">
 <div style="width:1120px; display:grid; grid-template-columns:1fr 1fr; gap:22px;">
 <div class="card sw a-pop" style="background:#E3EBF5; border-color:var(--blue); gap:10px;"><p class="mega" style="font-size:72px; color:var(--blue);">S</p><p style="font-size:32px; font-weight:700;">配對＋物品偵測，市場獨有<br>每座約 HK$290・已有手機原型</p></div>
-<div class="card sw a-pop" style="--d:1; background:#F6EBDD; border-color:var(--orange); gap:10px;"><p class="mega" style="font-size:72px; color:var(--orange);">W</p><p style="font-size:32px; font-weight:700;">細件漏測 → 一鍵回報<br>需安裝批准 → 先工作台測試</p></div>
+<div class="card sw a-pop" style="--d:1; background:#F6EBDD; border-color:var(--orange); gap:10px;"><p class="mega" style="font-size:72px; color:var(--orange);">W</p><p style="font-size:32px; font-weight:700;">細件漏測 → 一鍵回報<br>清不走佔位物品 → 超時回報館方<br>需安裝批准 → 先工作台測試</p></div>
 <div class="card sw a-pop" style="--d:2; background:#E5F0E8; border-color:var(--green); gap:10px;"><p class="mega" style="font-size:72px; color:var(--green);">O</p><p style="font-size:32px; font-weight:700;">科大 2026 計劃空位地圖<br>校園 LoRaWAN 免費</p></div>
 <div class="card sw a-pop" style="--d:3; background:#ECE8DF; border-color:var(--mute); gap:10px;"><p class="mega" style="font-size:72px; color:var(--soft);">T</p><p style="font-size:32px; font-weight:700;">學校直接買商業系統<br>私隱疑慮 → 不拍攝、不記身份</p></div>
 </div>
@@ -371,7 +371,7 @@ body.hint #help { opacity: 1; }
 </section>
 
 <!-- 6 solution (interactive sensor demo) -->
-<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 6 頁" class="slide" data-notes="（約30秒）我們的方案：每個座位裝一個自研感應節點。紅外線判斷有沒有人，桌面下的電容感應片判斷有沒有物品。【示範：按「有人坐下」→紅；「離開，留下物品」→黃；「清空桌面」→綠】有物品、沒有人，就是暫離，不會推薦。數據經免費的校園網絡傳到手機。節點不拍攝、不認人，零件每座約二百九十元。——追問時補充：問卷顯示非影像感應接受度 41.7%，攝影加 AI 只有 21.7%。">
+<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 6 頁" class="slide" data-notes="（約30秒）我們的方案：每個座位裝一個自研感應節點。紅外線判斷有沒有人，桌面下的電容感應片判斷有沒有物品。【示範：按「有人坐下」→紅；「離開，留下物品」→黃；「清空桌面」→綠】有物品、沒有人，就是暫離，不會推薦。不過系統不能把物品清走，所以暫離超過三十分鐘，會每半小時把名單回報圖書館職員處理。數據經免費的校園網絡傳到手機。節點不拍攝、不認人，零件每座約二百九十元。——追問時補充：問卷顯示非影像感應接受度 41.7%，攝影加 AI 只有 21.7%。">
 <p class="eyebrow">方案</p>
 <h2>一個座位，一個感應節點</h2>
 <div style="display:flex; gap:52px; margin-top:34px; align-items:center;">
@@ -402,7 +402,7 @@ body.hint #help { opacity: 1; }
 <button class="demo-btn" data-state="away"><span class="dot" style="background:var(--away)"></span>離開，留下物品</button>
 <button class="demo-btn" data-state="free"><span class="dot" style="background:var(--free)"></span>清空桌面</button>
 <p style="margin-top:20px; font-size:40px; font-weight:900;">有物品・無人 <span style="color:var(--orange)">＝不推薦</span></p>
-<ul class="cues"><li>紅外線：有沒有人</li><li>電容：桌面有沒有物品</li><li>校園網絡 → 手機</li><li>不拍攝・每座約 HK$290</li></ul>
+<ul class="cues"><li>紅外線：有沒有人</li><li>電容：桌面有沒有物品</li><li>暫離 &gt;30 分鐘 → 定期回報館方</li><li>校園網絡 → 手機</li><li>不拍攝・每座約 HK$290</li></ul>
 </div>
 </div>
 </section>
@@ -441,12 +441,12 @@ body.hint #help { opacity: 1; }
 </section>
 
 <!-- 9 callback -->
-<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 9 頁" class="slide alt" data-notes="（約15秒）回到一開始的痛點：座位不合需要，用按需配對；有物品沒有人，不再推薦；兜圈找位，平面圖帶路；圖書館不知道缺甚麼座位，交給匿名需求數據。">
+<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 9 頁" class="slide alt" data-notes="（約15秒）回到一開始的痛點：座位不合需要，用按需配對；有物品沒有人，不再推薦，佔用太久就定期回報館方；兜圈找位，平面圖帶路；圖書館不知道缺甚麼座位，交給匿名需求數據。">
 <p class="eyebrow">用完之後</p>
 <h2>四個痛點，逐一解決</h2>
 <div style="display:flex; flex-direction:column; gap:22px; margin-top:48px;">
 <div class="cb a-slide" style="--d:0"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">40.4%</span><span class="card-p">只找到不合需要的座位</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">按人數、插座、安靜配對</p></div>
-<div class="cb a-slide" style="--d:1"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">63.5%</span><span class="card-p">常見「有物品、無人」的座位</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">電容偵測物品，暫離不推薦</p></div>
+<div class="cb a-slide" style="--d:1"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">63.5%</span><span class="card-p">常見「有物品、無人」的座位</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">暫離不推薦，超過 30 分鐘回報館方</p></div>
 <div class="cb a-slide" style="--d:2"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">5–15′</span><span class="card-p">兜圈找位的時間</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">LG3 平面圖直接帶路</p></div>
 <div class="cb a-slide" style="--d:3"><div class="card"><span class="num" style="font-size:50px; color:var(--orange); width:180px;">?</span><span class="card-p">圖書館不知道缺哪種座位</span><i class="strike"></i></div><svg width="110" height="40"><path d="M14 20 H84 M70 6 L88 20 L70 34" stroke="#2F5D9E" stroke-width="5" fill="none" stroke-linecap="round"/></svg><p class="res">匿名需求數據，規劃座位種類</p></div>
 </div>
