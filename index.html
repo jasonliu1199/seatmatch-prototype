@@ -108,6 +108,19 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .seat.dim { opacity: .4; }
 .seat .plug { position: absolute; top: 1px; right: 2px; font-size: 8px; }
 @media (prefers-reduced-motion: no-preference) { .seat { transition: background-color .35s, opacity .35s; } }
+.floor { position: relative; background: var(--panel); border: 3px solid var(--ink); border-radius: 6px; padding: 0 10px 16px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+.win { height: 6px; margin: 0 -10px; background: repeating-linear-gradient(90deg, #9DC3E6 0 22px, transparent 22px 27px); }
+.floor-t { display: flex; justify-content: space-between; font-size: 11px; color: var(--soft); margin-top: -4px; }
+.fz { display: flex; flex-direction: column; gap: 5px; }
+.fz-h { font-size: 11px; color: var(--soft); font-weight: 700; display: flex; justify-content: space-between; }
+.fz-h b { color: var(--ink); }
+.mid { display: flex; gap: 10px; align-items: stretch; }
+.rooms { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.room { flex: 1; border: 1.5px solid var(--line); background: color-mix(in srgb, var(--line) 40%, transparent); border-radius: 6px; font-size: 10px; color: var(--soft); display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.3; padding: 2px; }
+.row.carrels .seat::after { content: ''; position: absolute; right: -5px; top: -4px; bottom: -4px; width: 2px; background: var(--soft); opacity: .45; }
+.row.carrels .seat:last-child::after { display: none; }
+.door { position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); width: 76px; height: 3px; background: var(--panel); }
+.you { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: var(--orange); font-weight: 700; }
 .entrance { font-size: 12px; color: var(--soft); text-align: right; letter-spacing: .08em; }
 
 .bars { display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
@@ -173,7 +186,7 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
     </div>
     <div id="plan" style="display:flex; flex-direction:column; gap:12px;"></div>
     <p class="note">每個座位一個感應節點：紅外線判斷有沒有人，桌底電容判斷桌面有沒有物品。細小物件（紙、筆）可能偵測不到，可點選座位一鍵回報。</p>
-    <div class="entrance">入口 ↓</div>
+    <div style="height:14px"></div>
   </main>
 
   <main class="view" id="v-demand" role="tabpanel" aria-labelledby="t-demand" hidden>
@@ -205,9 +218,9 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 (function () {
   const seats = [];
   function add(id, zone, group, idx, attrs) { seats.push(Object.assign({ id, zone, group, idx, status: 'free', awayMin: 0 }, attrs)); }
-  for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) add('A' + (r * 6 + i + 1), 'A', 'A-r' + r, i, { plug: r === 0, quiet: true, single: true, dist: 30 + i * 3 + r * 4 });
-  for (let t = 0; t < 4; t++) for (let i = 0; i < 4; i++) add('B' + (t * 4 + i + 1), 'B', 'B-t' + t, i, { plug: t < 2, quiet: false, single: false, table: true, dist: 12 + t * 6 });
-  for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) add('C' + (r * 6 + i + 1), 'C', 'C-r' + r, i, { plug: i % 2 === 0 || r === 1, quiet: true, single: false, dist: 8 + i * 4 + r * 2 });
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) add('A' + (r * 6 + i + 1), 'A', 'A-r' + r, i, { plug: r === 0, quiet: true, single: true, dist: 20 + i * 2 + r * 3 });
+  for (let t = 0; t < 4; t++) for (let i = 0; i < 4; i++) add('B' + (t * 4 + i + 1), 'B', 'B-t' + t, i, { plug: t < 2, quiet: false, single: false, table: true, dist: 6 + t * 4 });
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) add('C' + (r * 6 + i + 1), 'C', 'C-r' + r, i, { plug: i % 2 === 0 || r === 1, quiet: true, single: false, dist: 32 + i * 3 + r * 2 });
   const byId = Object.fromEntries(seats.map(s => [s.id, s]));
   ['A1','A3','A8','A9','A12','B1','B2','B3','B6','B9','B10','B11','B12','C1','C2','C5','C9','C12'].forEach(id => byId[id].status = 'taken');
   Object.entries({ A6: 12, B13: 22, C3: 5, C10: 18 }).forEach(([id, m]) => { byId[id].status = 'away'; byId[id].awayMin = m; });
@@ -242,16 +255,21 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   }
   function buildPlan() {
     const plan = document.getElementById('plan');
-    const mk = (title, count) => { const z = document.createElement('div'); z.className = 'zonebox'; z.innerHTML = '<div class="zone-h"><b>' + title + '</b><span>' + count + ' 位</span></div>'; return z; };
-    const zA = mk('A｜安靜區單人隔間', 12);
-    for (let r = 0; r < 2; r++) { const row = document.createElement('div'); row.className = 'row'; seats.filter(s => s.group === 'A-r' + r).forEach(s => row.appendChild(seatBtn(s))); zA.appendChild(row); }
-    const zB = mk('B｜四人桌', 16);
-    const tw = document.createElement('div'); tw.className = 'tables';
-    for (let t = 0; t < 4; t++) { const tb = document.createElement('div'); tb.className = 'table'; seats.filter(s => s.group === 'B-t' + t).forEach(s => tb.appendChild(seatBtn(s))); tw.appendChild(tb); }
-    zB.appendChild(tw);
-    const zC = mk('C｜窗邊長桌', 12);
-    for (let r = 0; r < 2; r++) { const row = document.createElement('div'); row.className = 'row'; seats.filter(s => s.group === 'C-r' + r).forEach(s => row.appendChild(seatBtn(s))); zC.appendChild(row); }
-    plan.append(zA, zB, zC);
+    const el = (tag, cls, html) => { const e = document.createElement(tag); e.className = cls; if (html) e.innerHTML = html; return e; };
+    const zone = (title, count) => el('div', 'fz', '<div class="fz-h"><b>' + title + '</b><span>' + count + ' 位</span></div>');
+    const rowOf = (group, cls) => { const r = el('div', 'row' + (cls ? ' ' + cls : '')); seats.filter(s => s.group === group).forEach(s => r.appendChild(seatBtn(s))); return r; };
+    const floor = el('div', 'floor');
+    floor.append(el('div', 'win'), el('div', 'floor-t', '<span>窗邊 ▸</span><span>LG1 試點區（示意圖）</span>'));
+    const zC = zone('C｜窗邊長桌', 12); zC.append(rowOf('C-r0'), rowOf('C-r1'));
+    const zA = zone('A｜安靜區單人隔間', 12); zA.append(rowOf('A-r0', 'carrels'), rowOf('A-r1', 'carrels'));
+    const zB = zone('B｜四人桌', 16);
+    const mid = el('div', 'mid');
+    const tw = el('div', 'tables');
+    for (let t = 0; t < 4; t++) { const tb = el('div', 'table'); seats.filter(s => s.group === 'B-t' + t).forEach(s => tb.appendChild(seatBtn(s))); tw.appendChild(tb); }
+    const rooms = el('div', 'rooms', '<div class="room">小組討論室<br>LG1-353</div><div class="room">小組討論室<br>LG1-362</div><div class="room">樓梯／升降機</div>');
+    mid.append(tw, rooms); zB.appendChild(mid);
+    floor.append(zC, zA, zB, el('div', 'door'), el('div', 'you', '▲ 入口（你在這裡）'));
+    plan.appendChild(floor);
   }
 
   function render() {
