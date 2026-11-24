@@ -18,9 +18,12 @@
   --soft: #5A6475;
   --line: #E1DCD2;
   --blue: #2F5D9E;
-  --blue-soft: #DCE5F2;
-  --taken: #C8CDD5;
-  --away: #F1D3A1;
+  --blue-soft: #D3EED9;
+  --taken: #F4CACA;
+  --away: #F6DE8A;
+  --dot-free: #2FA35A;
+  --dot-away: #E5B300;
+  --dot-taken: #D64545;
   --orange: #B8590F;
   --frame: #16233B;
   --font-body: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', Arial, sans-serif;
@@ -29,13 +32,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0C1320; --app: #131D2F; --panel: #1A2740; --ink: #EEF1F6; --soft: #A9B4C6; --line: #2A3A56;
-    --blue: #7FA6E0; --blue-soft: #263A5C; --taken: #364257; --away: #6B5428; --orange: #F0A35E; --frame: #3A4A66;
+    --blue: #7FA6E0; --blue-soft: #1F4A2E; --taken: #5A2A2A; --away: #6B5A1F; --orange: #F0A35E; --frame: #3A4A66;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0C1320; --app: #131D2F; --panel: #1A2740; --ink: #EEF1F6; --soft: #A9B4C6; --line: #2A3A56;
-  --blue: #7FA6E0; --blue-soft: #263A5C; --taken: #364257; --away: #6B5428; --orange: #F0A35E; --frame: #3A4A66;
+  --blue: #7FA6E0; --blue-soft: #1F4A2E; --taken: #5A2A2A; --away: #6B5A1F; --orange: #F0A35E; --frame: #3A4A66;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -108,6 +111,16 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .seat.dim { opacity: .4; }
 .seat .plug { position: absolute; top: 1px; right: 2px; font-size: 8px; }
 @media (prefers-reduced-motion: no-preference) { .seat { transition: background-color .35s, opacity .35s; } }
+.mapwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; -webkit-overflow-scrolling: touch; }
+.realmap { position: relative; width: 200%; background: #FBF6E6; }
+.realmap svg { display: block; width: 100%; height: auto; }
+.mdot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 1.5px solid #fff; padding: 0; cursor: pointer; box-shadow: 0 0 0 .5px rgba(0,0,0,.35); background: var(--dot-free); }
+.mdot.taken { background: var(--dot-taken); }
+.mdot.away { background: var(--dot-away); }
+.mdot.match { background: var(--blue); width: 17px; height: 17px; margin: -8.5px 0 0 -8.5px; }
+.mdot.pick { box-shadow: 0 0 0 3px var(--orange); }
+.mdot.dim { opacity: .35; }
+.map-cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--soft); margin-top: -6px; }
 .floor { position: relative; background: var(--panel); border: 3px solid var(--ink); border-radius: 6px; padding: 0 10px 16px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
 .win { height: 6px; margin: 0 -10px; background: repeating-linear-gradient(90deg, #9DC3E6 0 22px, transparent 22px 27px); }
 .floor-t { display: flex; justify-content: space-between; font-size: 11px; color: var(--soft); margin-top: -4px; }
@@ -153,7 +166,7 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 <div class="phone">
   <div class="statusbar" aria-hidden="true"><span id="sbtime">9:41</span><span>5G ▮▮▮</span></div>
   <header class="appbar">
-    <div><h1>按需配對</h1><div class="where">圖書館 LG1 試點區・40 個座位</div></div>
+    <div><h1>按需配對</h1><div class="where">圖書館 LG3 試點區・40 個座位</div></div>
     <span class="live"><span class="dot"></span><span id="clock">即時</span></span>
   </header>
 
@@ -169,19 +182,19 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
     <div class="chips" role="group" aria-label="座位條件">
       <button class="chip" id="f-plug" aria-pressed="true">⚡ 有插座</button>
       <button class="chip" id="f-quiet" aria-pressed="false">安靜區</button>
-      <button class="chip" id="f-single" aria-pressed="false" disabled>單人隔間</button>
+      <button class="chip" id="f-single" aria-pressed="false" disabled>單人座位</button>
     </div>
-    <p class="hint" id="single-hint">單人隔間只適用於 1 人；多人會配對可坐在一起的相鄰座位。</p>
+    <p class="hint" id="single-hint">單人座位只適用於 1 人；多人會配對可坐在一起的相鄰座位。</p>
     <div class="summary"><span class="n" id="count">0</span><span class="t" id="count-t">組符合</span></div>
     <ul class="results" id="results"></ul>
   </main>
 
   <main class="view" id="v-map" role="tabpanel" aria-labelledby="t-map" hidden>
     <div class="legend">
-      <span><i class="sw" style="background:var(--blue)"></i>符合需要</span>
-      <span><i class="sw" style="background:var(--blue-soft)"></i>其他空位</span>
-      <span><i class="sw" style="background:var(--away)"></i>暫離（有物品）</span>
-      <span><i class="sw" style="background:var(--taken)"></i>有人</span>
+      <span><i class="sw" style="background:var(--blue);border-radius:50%"></i>符合你</span>
+      <span><i class="sw" style="background:var(--dot-free);border-radius:50%"></i>空位</span>
+      <span><i class="sw" style="background:var(--dot-away);border-radius:50%"></i>暫離（有物品）</span>
+      <span><i class="sw" style="background:var(--dot-taken);border-radius:50%"></i>有人</span>
       <span>⚡ 插座</span>
     </div>
     <div id="plan" style="display:flex; flex-direction:column; gap:12px;"></div>
@@ -214,19 +227,24 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   </div>
 </div>
 
+<script src="lg3-plan.js"></script>
 <script>
 (function () {
   const seats = [];
   function add(id, zone, group, idx, attrs) { seats.push(Object.assign({ id, zone, group, idx, status: 'free', awayMin: 0 }, attrs)); }
-  for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) add('A' + (r * 6 + i + 1), 'A', 'A-r' + r, i, { plug: r === 0, quiet: true, single: true, dist: 20 + i * 2 + r * 3 });
-  for (let t = 0; t < 4; t++) for (let i = 0; i < 4; i++) add('B' + (t * 4 + i + 1), 'B', 'B-t' + t, i, { plug: t < 2, quiet: false, single: false, table: true, dist: 6 + t * 4 });
-  for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) add('C' + (r * 6 + i + 1), 'C', 'C-r' + r, i, { plug: i % 2 === 0 || r === 1, quiet: true, single: false, dist: 32 + i * 3 + r * 2 });
+  // Seat positions and the redrawn LG3 plan come from lg3-plan.js (shared with the slides).
+  LG3.seats.forEach(s => {
+    const n = +s.id.slice(1) - 1;
+    const group = s.zone === 'B' ? 'B-t' + s.table : s.zone === 'A' ? 'A-r' + (n < 4 ? 0 : 1) : 'C-r' + (n < 6 ? 0 : 1);
+    const idx = s.zone === 'B' ? n % 6 : s.zone === 'A' ? (n < 4 ? n : n - 4) : n % 6;
+    add(s.id, s.zone, group, idx, { x: s.x, y: s.y, plug: s.plug, quiet: s.quiet, single: s.single, table: s.zone === 'B', dist: LG3.dist(s.x, s.y) });
+  });
   const byId = Object.fromEntries(seats.map(s => [s.id, s]));
-  ['A1','A3','A8','A9','A12','B1','B2','B3','B6','B9','B10','B11','B12','C1','C2','C5','C9','C12'].forEach(id => byId[id].status = 'taken');
-  Object.entries({ A6: 12, B13: 22, C3: 5, C10: 18 }).forEach(([id, m]) => { byId[id].status = 'away'; byId[id].awayMin = m; });
+  ['A1','A3','A7','A10','B1','B2','B3','B5','B7','B8','B11','B14','B16','C1','C2','C5','C9','C12'].forEach(id => byId[id].status = 'taken');
+  Object.entries({ A5: 12, B13: 22, C3: 5, C10: 18 }).forEach(([id, m]) => { byId[id].status = 'away'; byId[id].awayMin = m; });
 
   const state = { plug: true, quiet: false, single: false, n: 2, pick: null, seat: null };
-  const zoneName = { A: '安靜區單人隔間', B: '四人桌', C: '窗邊長桌' };
+  const zoneName = { A: '單人座位', B: '長桌', C: '窗邊長桌' };
 
   function okSeat(s) {
     return s.status === 'free' && (!state.plug || s.plug) && (!state.quiet || s.quiet) && (!state.single || s.single);
@@ -256,20 +274,22 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   function buildPlan() {
     const plan = document.getElementById('plan');
     const el = (tag, cls, html) => { const e = document.createElement(tag); e.className = cls; if (html) e.innerHTML = html; return e; };
-    const zone = (title, count) => el('div', 'fz', '<div class="fz-h"><b>' + title + '</b><span>' + count + ' 位</span></div>');
-    const rowOf = (group, cls) => { const r = el('div', 'row' + (cls ? ' ' + cls : '')); seats.filter(s => s.group === group).forEach(s => r.appendChild(seatBtn(s))); return r; };
-    const floor = el('div', 'floor');
-    floor.append(el('div', 'win'), el('div', 'floor-t', '<span>窗邊 ▸</span><span>LG1 試點區（示意圖）</span>'));
+    const map = el('div', 'realmap', LG3.svg());
+    seats.forEach(s => {
+      const d = el('button', 'mdot'); d.id = 'dot-' + s.id;
+      const p = LG3.pct(s.x, s.y); d.style.left = p.left; d.style.top = p.top;
+      d.addEventListener('click', () => openSheet(s.id)); map.appendChild(d);
+    });
+    const wrap = el('div', 'mapwrap'); wrap.id = 'mapwrap'; wrap.appendChild(map);
+    plan.append(wrap, el('div', 'map-cap', '<span>← 左右滑動　按 HKUST Library 平面圖重畫</span><span>樓梯／入口 →</span>'));
+    const zone = (title, count) => el('div', 'zonebox', '<div class="zone-h"><b>' + title + '</b><span>' + count + ' 位</span></div>');
+    const rowOf = group => { const r = el('div', 'row'); seats.filter(s => s.group === group).forEach(s => r.appendChild(seatBtn(s))); return r; };
     const zC = zone('C｜窗邊長桌', 12); zC.append(rowOf('C-r0'), rowOf('C-r1'));
-    const zA = zone('A｜安靜區單人隔間', 12); zA.append(rowOf('A-r0', 'carrels'), rowOf('A-r1', 'carrels'));
-    const zB = zone('B｜四人桌', 16);
-    const mid = el('div', 'mid');
-    const tw = el('div', 'tables');
-    for (let t = 0; t < 4; t++) { const tb = el('div', 'table'); seats.filter(s => s.group === 'B-t' + t).forEach(s => tb.appendChild(seatBtn(s))); tw.appendChild(tb); }
-    const rooms = el('div', 'rooms', '<div class="room">小組討論室<br>LG1-353</div><div class="room">小組討論室<br>LG1-362</div><div class="room">樓梯／升降機</div>');
-    mid.append(tw, rooms); zB.appendChild(mid);
-    floor.append(zC, zA, zB, el('div', 'door'), el('div', 'you', '▲ 入口（你在這裡）'));
-    plan.appendChild(floor);
+    const zB = zone('B｜長桌（每張 6 位）', 18); const tw = el('div', 'tables');
+    for (let t = 0; t < 3; t++) { const tb = el('div', 'table'); seats.filter(s => s.group === 'B-t' + t).forEach(s => tb.appendChild(seatBtn(s))); tw.appendChild(tb); }
+    zB.appendChild(tw);
+    const zA = zone('A｜單人座位', 10); zA.append(rowOf('A-r0'), rowOf('A-r1'));
+    plan.append(zC, zB, zA);
   }
 
   function render() {
@@ -283,6 +303,9 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
       b.innerHTML = s.id + (s.plug ? '<span class="plug" aria-hidden="true">⚡</span>' : '');
       const st = s.status === 'taken' ? '有人' : s.status === 'away' ? '暫離，有物品' : match.has(s.id) ? '符合' : '空位';
       b.setAttribute('aria-label', s.id + '，' + st + (s.plug ? '，有插座' : ''));
+      const d = document.getElementById('dot-' + s.id);
+      d.className = 'mdot' + (s.status === 'taken' ? ' taken' : s.status === 'away' ? ' away' : '') + (match.has(s.id) ? ' match' : '') + (pick.has(s.id) ? ' pick' : '') + (pick.size && !pick.has(s.id) ? ' dim' : '');
+      d.setAttribute('aria-label', s.id + '，' + st);
     });
     document.getElementById('count').textContent = groups.length;
     document.getElementById('count-t').textContent = state.n === 1 ? '個符合的空位' : '組可 ' + state.n + ' 人坐在一起';
@@ -297,6 +320,12 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
       ul.appendChild(li);
     });
     if (groups.length > 3) { const li = document.createElement('li'); li.innerHTML = '<p class="note">另有 ' + (groups.length - 3) + (state.n === 1 ? ' 個' : ' 組') + '，可在平面圖查看。</p>'; ul.appendChild(li); }
+    // Scroll the zoomed plan so the picked seats are in view.
+    if (pick.size) {
+      const g = groups[state.pick], w = document.getElementById('mapwrap');
+      const cx = g.reduce((a, s) => a + s.x, 0) / g.length;
+      requestAnimationFrame(() => { w.scrollLeft = (cx - LG3.VB.x) / LG3.VB.w * w.scrollWidth - w.clientWidth / 2; });
+    }
     if (state.seat) fillSheet();
   }
 
