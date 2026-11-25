@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<title>SeatMatch 短片</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+:root { --navy:#16233B; --amber:#E8A33D; --paper:#FBFAF6; --soft:#C9D3E0; --free:#2FA35A; --away:#E5B300; --taken:#D64545; --blue:#2F5D9E; }
+* { box-sizing:border-box; margin:0; }
+html,body { width:1080px; height:1920px; overflow:hidden; }
+body { background: radial-gradient(1200px 900px at 80% 0%, #24365A 0%, var(--navy) 55%) , var(--navy); color:var(--paper); font-family:'Noto Sans TC','PingFang TC',sans-serif; position:relative; }
+.brand { position:absolute; top:96px; left:0; right:0; text-align:center; font:700 34px 'Space Grotesk','Noto Sans TC'; color:var(--amber); letter-spacing:.06em; }
+.brand i { display:inline-block; width:14px; height:14px; border-radius:50%; margin-right:8px; vertical-align:2px; }
+.cap { position:absolute; top:160px; left:60px; right:60px; text-align:center; transition:opacity .35s, transform .35s; }
+.cap h1 { font-size:72px; font-weight:900; line-height:1.18; }
+.cap.out { opacity:0; transform:translateY(16px); }
+.sub { position:absolute; top:1700px; left:60px; right:60px; text-align:center; font-size:44px; font-weight:700; color:var(--soft); line-height:1.35; transition:opacity .35s; }
+.sub.out { opacity:0; }
+.sub b { color:var(--amber); }
+.tag { position:absolute; bottom:44px; left:0; right:0; text-align:center; font-size:26px; color:#8C97A8; }
+.phone { position:absolute; left:50%; top:330px; width:418px; height:906px; margin-left:-209px; transform-origin:top center; transform:scale(1.5); background:#0B1220; border-radius:58px; padding:14px; box-shadow:0 40px 80px rgba(0,0,0,.45), 0 0 0 2px #34445F inset; transition:opacity .6s, transform .6s; }
+.phone.hide { opacity:0; transform:scale(1.42) translateY(30px); }
+.screen { position:relative; width:390px; height:878px; border-radius:46px; overflow:hidden; background:#FBFAF6; }
+.sb { height:34px; display:flex; justify-content:space-between; align-items:center; padding:4px 30px 0; font:700 14px 'Space Grotesk'; color:#16233B; }
+.sb .notch { width:110px; height:26px; border-radius:14px; background:#0B1220; }
+iframe { display:block; width:390px; height:844px; border:0; }
+.finger { position:absolute; left:0; top:0; width:44px; height:44px; margin:-22px 0 0 -22px; border-radius:50%; background:rgba(232,163,61,.35); border:3px solid var(--amber); opacity:0; transition:left .55s cubic-bezier(.3,.7,.3,1), top .55s cubic-bezier(.3,.7,.3,1), opacity .25s, transform .15s; pointer-events:none; z-index:5; }
+.finger.on { opacity:1; }
+.finger.press { transform:scale(.7); background:rgba(232,163,61,.7); }
+.card { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:36px; text-align:center; padding:0 70px; transition:opacity .6s; background:inherit; z-index:10; }
+.card.out { opacity:0; pointer-events:none; }
+.big { font:700 190px/1 'Space Grotesk'; color:var(--paper); }
+.big small { font-size:60px; font-family:'Noto Sans TC'; font-weight:700; color:var(--soft); }
+.q { font-size:68px; font-weight:900; line-height:1.25; }
+.q em { font-style:normal; color:var(--amber); }
+.dots { display:flex; gap:22px; }
+.dots span { width:34px; height:34px; border-radius:50%; }
+.logo { font:700 92px 'Space Grotesk'; }
+.logo small { display:block; font:900 64px 'Noto Sans TC'; color:var(--amber); margin-top:14px; }
+.qr { width:330px; height:330px; background:#fff; padding:18px; border-radius:28px; }
+.url { font:700 34px 'Space Grotesk'; color:var(--soft); }
+.fade-in > * { opacity:0; transform:translateY(24px); transition:opacity .6s, transform .6s; }
+.fade-in.go > * { opacity:1; transform:none; }
+.fade-in.go > *:nth-child(2) { transition-delay:.35s; } .fade-in.go > *:nth-child(3) { transition-delay:.7s; } .fade-in.go > *:nth-child(4) { transition-delay:1.05s; }
+</style>
+</head>
+<body>
+<div class="brand"><i style="background:var(--free)"></i><i style="background:var(--away)"></i><i style="background:var(--taken)"></i>SeatMatch 按需配對</div>
+<div class="cap out" id="cap"><h1 id="cap-h"></h1></div>
+<div class="phone hide" id="phone"><div class="screen" id="screen">
+  <div class="sb"><span>9:41</span><span class="notch"></span><span>5G ▮▮▮</span></div>
+  <iframe id="app" src="index.html" title="SeatMatch 原型"></iframe>
+  <div class="finger" id="finger"></div>
+</div></div>
+<div class="sub out" id="sub"></div>
+<div class="tag">原型示意・模擬數據｜LANG1422 項目資金申請</div>
+
+<div class="card fade-in" id="intro">
+  <div class="dots"><span style="background:var(--free)"></span><span style="background:var(--away)"></span><span style="background:var(--taken)"></span></div>
+  <p class="big">3,000<small> 個座位</small></p>
+  <p class="q">只要 <em>1,500</em> 人<br>就找不到合適的位？</p>
+</div>
+<div class="card fade-in out" id="outro">
+  <p class="logo">SeatMatch<small>按需配對・即時尋位</small></p>
+  <p class="q" style="font-size:54px;">讓每位同學<br>馬上找到適合自己的座位</p>
+  <img class="qr" src="qr.png" alt="">
+  <p class="url">jasonliu1199.github.io/seatmatch-prototype</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let D;
+const finger = $('finger');
+async function caption(h, sub) {
+  $('cap').classList.add('out'); $('sub').classList.add('out');
+  await sleep(350);
+  $('cap-h').innerHTML = h; $('sub').innerHTML = sub || '';
+  $('cap').classList.remove('out'); $('sub').classList.remove('out');
+}
+async function tap(el, hold) {
+  const r = el.getBoundingClientRect();
+  finger.style.left = r.left + r.width / 2 + 'px'; finger.style.top = 34 + r.top + r.height / 2 + 'px';
+  finger.classList.add('on'); await sleep(650);
+  finger.classList.add('press'); await sleep(160); el.click(); finger.classList.remove('press');
+  await sleep(hold || 500);
+}
+async function run() {
+  D = $('app').contentDocument;
+  await document.fonts.ready; await sleep(400);
+  $('intro').classList.add('go');
+  await sleep(3600);
+  $('intro').classList.add('out'); $('phone').classList.remove('hide');
+  await caption('找位，不只是找「空位」', '要插座、要和同伴坐、要安靜');
+  await sleep(2200);
+
+  await caption('① 選人數和需要', '例如：<b>3 人</b>、要插座');
+  await tap(D.getElementById('n-3'), 1300);
+  await caption('即時列出<br>可以坐在一起的空位', '只配對<b>相鄰或面對面</b>的座位');
+  await tap(D.getElementById('n-2'), 2300);
+
+  await caption('② 平面圖直接帶路', '<b style="color:#7FA6E0">藍點</b>＝符合你　綠＝空位　紅＝有人');
+  await tap(D.getElementById('show-0'), 3000);
+
+  // ③ an away seat: scroll it into view, tap it
+  const away = [...D.querySelectorAll('.mdot.away')].sort((a, b) => a.offsetLeft - b.offsetLeft)[0];
+  const w = D.getElementById('mapwrap');
+  await caption('③ 有物品、沒有人＝暫離', '<b style="color:#E5B300">黃點</b>不推薦；暫離太久定期回報館方');
+  w.scrollTo({ left: away.offsetLeft - w.clientWidth / 2, behavior: 'smooth' }); await sleep(900);
+  await tap(away, 2600);
+  await tap(D.getElementById('sheet-close'), 500);
+
+  // ④ one-tap report on a free seat
+  // a free seat high on the plan, so the bottom sheet never covers the tap
+  const free = [...D.querySelectorAll('.mdot')].filter(d => !/taken|away|match/.test(d.className)).sort((a, b) => a.offsetTop - b.offsetTop || Math.abs(a.offsetLeft - w.scrollLeft - w.clientWidth / 2) - Math.abs(b.offsetLeft - w.scrollLeft - w.clientWidth / 2))[0];
+  await caption('細小物品偵測不到？', '同學可以<b>一鍵回報</b>，座位暫不推薦');
+  await tap(free, 900);
+  await tap(D.getElementById('rep-item'), 2300);
+  await tap(D.getElementById('sheet-close'), 500);
+
+  await caption('④ 匿名需求數據', '告訴圖書館：同學<b>缺哪種座位</b>');
+  await tap(D.getElementById('t-demand'), 3000);
+  finger.classList.remove('on');
+
+  $('outro').classList.remove('out'); await sleep(100); $('outro').classList.add('go');
+  await sleep(4200);
+  window.DONE = true;
+}
+window.START = () => run();
+</script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<title>SeatMatch 16:9</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+:root { --navy:#16233B; --amber:#E8A33D; --paper:#FBFAF6; --soft:#C9D3E0; --free:#2FA35A; --away:#E5B300; --taken:#D64545; --blue:#4F86D6; }
+* { box-sizing:border-box; margin:0; }
+html,body { width:1920px; height:1080px; overflow:hidden; }
+body { background:var(--navy); color:var(--paper); font-family:'Noto Sans TC','PingFang TC',sans-serif; position:relative; }
+/* moving aurora */
+.aur { position:absolute; border-radius:50%; filter:blur(90px); opacity:.55; }
+.a1 { width:900px; height:700px; left:-200px; top:-200px; background:#2F5D9E; animation:drift1 14s ease-in-out infinite alternate; }
+.a2 { width:800px; height:600px; right:-150px; bottom:-250px; background:#B8590F; opacity:.35; animation:drift2 16s ease-in-out infinite alternate; }
+.a3 { width:600px; height:500px; left:700px; top:500px; background:#2FA35A; opacity:.22; animation:drift1 18s ease-in-out infinite alternate-reverse; }
+@keyframes drift1 { to { transform:translate(260px,140px) scale(1.15); } }
+@keyframes drift2 { to { transform:translate(-220px,-120px) scale(1.1); } }
+.grid { position:absolute; inset:0; background-image:radial-gradient(rgba(255,255,255,.07) 1.5px, transparent 1.5px); background-size:36px 36px; }
+
+.cam { position:absolute; left:0; top:0; width:418px; height:906px; transform-origin:0 0; transition:transform 1s cubic-bezier(.6,0,.2,1), opacity .7s; will-change:transform; }
+.phone { width:418px; height:906px; background:#0B1220; border-radius:58px; padding:14px; box-shadow:0 50px 100px rgba(0,0,0,.5), 0 0 0 2px #3A4A66 inset, 0 0 120px rgba(79,134,214,.25); }
+.screen { position:relative; width:390px; height:878px; border-radius:46px; overflow:hidden; background:#FBFAF6; }
+.sb { height:34px; display:flex; justify-content:space-between; align-items:center; padding:4px 30px 0; font:700 14px 'Space Grotesk'; color:#16233B; }
+.sb .notch { width:110px; height:26px; border-radius:14px; background:#0B1220; }
+iframe { display:block; width:390px; height:844px; border:0; }
+.finger { position:absolute; left:0; top:0; width:40px; height:40px; margin:-20px 0 0 -20px; border-radius:50%; background:rgba(232,163,61,.35); border:3px solid var(--amber); opacity:0; transition:left .5s cubic-bezier(.3,.7,.3,1), top .5s cubic-bezier(.3,.7,.3,1), opacity .25s, transform .15s; pointer-events:none; z-index:5; }
+.finger.on { opacity:1; } .finger.press { transform:scale(.7); background:rgba(232,163,61,.75); }
+.ripple { position:absolute; width:40px; height:40px; margin:-20px 0 0 -20px; border-radius:50%; border:3px solid var(--amber); pointer-events:none; animation:rip .7s ease-out forwards; z-index:4; }
+@keyframes rip { to { transform:scale(3.2); opacity:0; } }
+
+.panel { position:absolute; left:1080px; top:0; bottom:0; width:760px; display:flex; flex-direction:column; justify-content:center; gap:26px; }
+.num { font:700 180px/0.9 'Space Grotesk'; color:transparent; -webkit-text-stroke:3px var(--amber); }
+.ttl { font-size:86px; font-weight:900; line-height:1.15; }
+.ttl em { font-style:normal; color:var(--amber); }
+.sub2 { font-size:40px; font-weight:500; color:var(--soft); line-height:1.4; }
+.sub2 b { color:var(--paper); font-weight:900; }
+.pill { align-self:flex-start; display:inline-flex; align-items:center; gap:14px; padding:14px 28px; border-radius:999px; background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.18); font-size:34px; font-weight:700; }
+.pill i { width:22px; height:22px; border-radius:50%; display:inline-block; }
+.panel > * { transition:opacity .45s, transform .55s cubic-bezier(.2,.8,.2,1), filter .45s; }
+.panel.out > * { opacity:0; transform:translateX(60px); filter:blur(8px); }
+.panel > *:nth-child(2) { transition-delay:.07s; } .panel > *:nth-child(3) { transition-delay:.14s; } .panel > *:nth-child(4) { transition-delay:.21s; }
+.panel.out > * { transition-delay:0s; }
+.brand { position:absolute; left:1080px; top:64px; font:700 30px 'Space Grotesk','Noto Sans TC'; color:var(--amber); letter-spacing:.05em; transition:opacity .6s; }
+.brand i { display:inline-block; width:13px; height:13px; border-radius:50%; margin-right:7px; vertical-align:2px; }
+.tag { position:absolute; right:64px; bottom:40px; font-size:24px; color:#8C97A8; }
+.bar { position:absolute; left:0; bottom:0; height:6px; background:linear-gradient(90deg,var(--free),var(--away),var(--taken)); width:0; transition:width .8s; }
+
+.card { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:30px; text-align:center; transition:opacity .7s; z-index:10; }
+.card.out { opacity:0; pointer-events:none; }
+#field { position:absolute; inset:0; }
+.big { font:700 230px/1 'Space Grotesk'; position:relative; text-shadow:0 10px 60px rgba(0,0,0,.6); }
+.big small { font:900 70px 'Noto Sans TC'; color:var(--soft); }
+.q { font-size:76px; font-weight:900; position:relative; text-shadow:0 6px 40px rgba(0,0,0,.6); }
+.q em { font-style:normal; color:var(--amber); }
+.logo { font:700 140px 'Space Grotesk'; position:relative; }
+.logo small { display:block; font:900 72px 'Noto Sans TC'; color:var(--amber); margin-top:10px; }
+.reveal > * { opacity:0; transform:translateY(40px) scale(.96); transition:opacity .6s, transform .7s cubic-bezier(.2,.8,.2,1); }
+.reveal.go > * { opacity:1; transform:none; }
+.reveal.go > *:nth-child(3) { transition-delay:.45s; } .reveal.go > *:nth-child(4) { transition-delay:.9s; }
+</style>
+</head>
+<body>
+<div class="aur a1"></div><div class="aur a2"></div><div class="aur a3"></div><div class="grid"></div>
+<div class="brand" id="brand" style="opacity:0"><i style="background:var(--free)"></i><i style="background:var(--away)"></i><i style="background:var(--taken)"></i>SeatMatch 按需配對</div>
+
+<div class="cam" id="cam" style="opacity:0"><div class="phone"><div class="screen" id="screen">
+  <div class="sb"><span>9:41</span><span class="notch"></span><span>5G ▮▮▮</span></div>
+  <iframe id="app" src="index.html" title="SeatMatch 原型"></iframe>
+  <div class="finger" id="finger"></div>
+</div></div></div>
+
+<div class="panel out" id="panel"><p class="num" id="p-num"></p><p class="ttl" id="p-ttl"></p><p class="sub2" id="p-sub"></p><p class="pill" id="p-pill"></p></div>
+<div class="tag">原型示意・模擬數據</div>
+<div class="bar" id="bar"></div>
+
+<div class="card reveal" id="intro"><canvas id="field" width="1920" height="1080"></canvas><span></span>
+  <p class="big"><span id="cnt">0</span><small> 個座位</small></p>
+  <p class="q">只要 <em>1,500</em> 人，就找不到合適的位？</p>
+</div>
+<div class="card reveal out" id="outro"><span></span><span></span>
+  <p class="logo">SeatMatch<small>按需配對・即時尋位</small></p>
+  <p class="q" style="font-size:58px;">讓每位同學，馬上找到適合自己的座位</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let D;
+const cam = $('cam'), finger = $('finger');
+const CX = 540, CY = 540;           // where the camera centres the phone
+function look(px, py, s) {           // put phone-local point (px,py) at the camera centre, scaled by s
+  cam.style.transform = `translate(${CX - s * px}px, ${CY - s * py}px) scale(${s})`;
+}
+const home = () => look(209, 453, 1.1);
+const local = el => { const r = el.getBoundingClientRect(); return [14 + r.left + r.width / 2, 14 + 34 + r.top + r.height / 2]; };
+async function panel(num, ttl, sub, pill) {
+  $('panel').classList.add('out'); await sleep(380);
+  $('p-num').textContent = num; $('p-ttl').innerHTML = ttl; $('p-sub').innerHTML = sub; $('p-pill').innerHTML = pill || ''; $('p-pill').style.display = pill ? '' : 'none';
+  $('panel').classList.remove('out');
+}
+async function tap(el, hold) {
+  const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = 34 + r.top + r.height / 2;
+  finger.style.left = x + 'px'; finger.style.top = y + 'px'; finger.classList.add('on'); await sleep(560);
+  finger.classList.add('press');
+  const rp = document.createElement('div'); rp.className = 'ripple'; rp.style.left = x + 'px'; rp.style.top = y + 'px'; $('screen').appendChild(rp); setTimeout(() => rp.remove(), 800);
+  await sleep(140); el.click(); finger.classList.remove('press');
+  await sleep(hold || 400);
+}
+// intro seat field
+function field() {
+  const c = $('field').getContext('2d'), cols = ['#2FA35A', '#E5B300', '#D64545'], dots = [];
+  for (let y = 60; y < 1080; y += 46) for (let x = 40; x < 1920; x += 46) dots.push({ x, y, s: Math.random() < .5 ? 2 : Math.random() < .3 ? 1 : 0, t: Math.random() * 100 });
+  let f = 0;
+  (function loop() {
+    f++; c.clearRect(0, 0, 1920, 1080);
+    const fill = Math.min(1, f / 110);
+    dots.forEach(d => { const taken = d.t < fill * 100; c.globalAlpha = .55; c.fillStyle = taken ? cols[d.s] : '#2FA35A'; c.beginPath(); c.arc(d.x, d.y, 7, 0, 7); c.fill(); });
+    if (f < 400) requestAnimationFrame(loop);
+  })();
+}
+async function count() { for (let i = 0; i <= 30; i++) { $('cnt').textContent = Math.round(3000 * (1 - Math.pow(1 - i / 30, 3))).toLocaleString(); await sleep(28); } }
+const progress = p => $('bar').style.width = p + '%';
+
+async function run() {
+  D = $('app').contentDocument; home();
+  await document.fonts.ready; await sleep(300);
+  field(); $('intro').classList.add('go'); count();
+  await sleep(3300);
+  $('intro').classList.add('out'); cam.style.opacity = 1; $('brand').style.opacity = 1;
+
+  await panel('01', '選人數，<br>選<em>你的</em>需要', '要插座、要和同伴坐、要安靜', '<i style="background:#4F86D6"></i>即時配對');
+  progress(18);
+  await sleep(700);
+  await tap(D.getElementById('n-3'), 900);
+  await panel('01', '只列出<br><em>坐在一起</em>的位', '長桌只配對<b>相鄰或面對面</b>的座位');
+  look(209, 330, 1.55);               // push in on the results
+  await sleep(500);
+  await tap(D.getElementById('n-2'), 1500);
+  home();
+
+  await panel('02', '平面圖<br><em>直接帶路</em>', '<b style="color:#7FA6E0">藍點</b>＝符合你　綠＝空位　紅＝有人', '<i style="background:#4F86D6"></i>LG3 試點區・40 個座位');
+  progress(40);
+  await tap(D.getElementById('show-0'), 500);
+  const blue = D.querySelector('.mdot.pick') || D.querySelector('.mdot.match');
+  const [bx, by] = local(blue); look(bx, by, 1.9);
+  await sleep(2000);
+  home(); await sleep(600);
+
+  const away = [...D.querySelectorAll('.mdot.away')].sort((a, b) => a.offsetTop - b.offsetTop)[0];
+  await panel('03', '有物品、沒有人<br>＝<em>暫離</em>', '<b style="color:#E5B300">黃點</b>不推薦，暫離太久定期回報館方', '<i style="background:#E5B300"></i>紅外線＋桌底電容');
+  progress(62);
+  await tap(away, 300);
+  look(209, 800, 1.6);                // push in on the seat sheet
+  await sleep(2200);
+  home();
+  await tap(D.getElementById('sheet-close'), 300);
+
+  const w = D.getElementById('mapwrap');
+  const free = [...D.querySelectorAll('.mdot')].filter(d => !/taken|away|match/.test(d.className)).sort((a, b) => a.offsetTop - b.offsetTop)[0];
+  await panel('04', '細件偵測不到？<br><em>一鍵回報</em>', '同學回報後，座位即時變黃、暫不推薦');
+  progress(80);
+  await tap(free, 600);
+  look(209, 800, 1.6); await sleep(400);
+  await tap(D.getElementById('rep-item'), 1500);
+  home();
+  await tap(D.getElementById('sheet-close'), 200);
+
+  await panel('05', '匿名需求數據', '告訴圖書館：同學<b>缺哪種座位</b>', '<i style="background:#B8590F"></i>不記錄身份');
+  progress(100);
+  await tap(D.getElementById('t-demand'), 400);
+  look(209, 330, 1.5);
+  await sleep(2000);
+  finger.classList.remove('on');
+
+  cam.style.opacity = 0; $('panel').classList.add('out'); $('brand').style.opacity = 0;
+  $('outro').classList.remove('out'); await sleep(80); $('outro').classList.add('go');
+  await sleep(3000);
+  window.DONE = true;
+}
+window.START = () => run();
+</script>
+</body>
+</html>
