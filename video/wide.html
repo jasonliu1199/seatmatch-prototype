@@ -126,21 +126,21 @@ let VO = [];
 window.MARK = [];
 let T0 = 0;
 function mark(i) { window.MARK[i] = Date.now() / 1000; T0 = performance.now(); }
-async function until(i, extra) { const need = VO[i] * 1000 + (extra == null ? 450 : extra); const el = performance.now() - T0; if (el < need) await sleep(need - el); }
+async function until(i, extra) { const need = VO[i] * 1000 + (extra == null ? 150 : extra); const el = performance.now() - T0; if (el < need) await sleep(need - el); }
 
 async function run() {
   VO = await (await fetch('durs.json')).json();
   D = $('app').contentDocument; home();
   await document.fonts.ready; await sleep(300);
   mark(0); field(); $('intro').classList.add('go'); count();
-  await until(0, 600);
+  await until(0, 200);
   $('intro').classList.add('out'); cam.style.opacity = 1; $('brand').style.opacity = 1;
 
   mark(1);
   await panel('01', '選人數，<br>選<em>你的</em>需要', '要插座、要和同伴坐、要安靜', '<i style="background:#4F86D6"></i>即時配對');
   progress(18);
-  await sleep(500);
-  await tap(D.getElementById('n-3'), 600);
+  await sleep(250);
+  await tap(D.getElementById('n-3'), 400);
   await until(1);
 
   mark(2);
@@ -157,8 +157,8 @@ async function run() {
   await tap(D.getElementById('show-0'), 300);
   const blue = D.querySelector('.mdot.pick') || D.querySelector('.mdot.match');
   const [bx, by] = local(blue); look(bx, by, 1.9);
-  await until(3, 200);
-  home(); await sleep(500);
+  await until(3, 0);
+  home(); await sleep(250);
 
   mark(4);
   const away = [...D.querySelectorAll('.mdot.away')].sort((a, b) => a.offsetTop - b.offsetTop)[0];
@@ -166,7 +166,7 @@ async function run() {
   progress(62);
   await tap(away, 300);
   look(209, 800, 1.6);
-  await until(4, 200);
+  await until(4, 0);
   home();
   await tap(D.getElementById('sheet-close'), 200);
 
@@ -177,7 +177,7 @@ async function run() {
   await tap(free, 400);
   look(209, 800, 1.6); await sleep(300);
   await tap(D.getElementById('rep-item'), 600);
-  await until(5, 300);
+  await until(5, 100);
   home();
   await tap(D.getElementById('sheet-close'), 200);
 
@@ -186,13 +186,13 @@ async function run() {
   progress(100);
   await tap(D.getElementById('t-demand'), 300);
   look(209, 330, 1.5);
-  await until(6, 300);
+  await until(6, 100);
   finger.classList.remove('on');
 
   cam.style.opacity = 0; $('panel').classList.add('out'); $('brand').style.opacity = 0;
   $('outro').classList.remove('out'); await sleep(80); $('outro').classList.add('go');
   mark(7);
-  await until(7, 1800);
+  await until(7, 900);
   window.DONE = true;
 }
 window.START = () => run();
