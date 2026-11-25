@@ -86,7 +86,7 @@ with sync_playwright() as p:
     page.click('#vplay'); page.wait_for_timeout(1200)
     playing = page.evaluate("(v => !v.paused && v.currentTime > 0.3)(document.getElementById('appvid'))")
     check(playing, 'app video: the play button starts the video')
-    page.keyboard.press('Escape'); page.evaluate("document.fullscreenElement && document.exitFullscreen()"); page.wait_for_timeout(300)
+    check(page.evaluate("!document.fullscreenElement && getComputedStyle(document.getElementById('vplay')).display === 'none'"), 'app video: plays inside the slide, button hidden while playing')
     page.keyboard.press('ArrowRight'); page.wait_for_timeout(300)
     check(page.evaluate("document.getElementById('appvid').paused"), 'app video: leaving the slide pauses the video')
     page.keyboard.press('n')

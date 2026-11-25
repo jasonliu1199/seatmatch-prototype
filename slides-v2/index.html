@@ -199,6 +199,7 @@ table.cmp { width: 100%; border-collapse: separate; border-spacing: 0; font-size
 .vid video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .vplay { position: absolute; left: 50%; top: 87%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 16px; padding: 22px 42px; border: 0; border-radius: 999px; background: var(--amber); color: #16233B; font: 900 40px 'Noto Sans TC', sans-serif; cursor: pointer; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
 .vplay span { font-size: 40px; }
+.vplay[hidden] { display: none; }
 @media (prefers-reduced-motion: no-preference) { .slide.active .vplay { animation: vpulse 2.2s ease-in-out infinite; } }
 @keyframes vpulse { 50% { box-shadow: 0 12px 40px rgba(0,0,0,.35), 0 0 0 18px rgba(232,163,61,.25); } }
 /* journey steps */
@@ -432,11 +433,11 @@ body.hint #help { opacity: 1; }
 </section>
 
 <!-- 8 journey with live prototype -->
-<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 8 頁" class="slide" data-notes="（約35秒）如果你是同學，打開 App 就是這樣。【點畫面，全屏播放約 30 秒短片，有普通話配音；播完自動回到簡報】【播完】評審現在就可以掃碼試用。——短片播不到時，改為講：選兩個人要插座，即時列出可以坐在一起的空位；平面圖藍點就是符合的座位；黃點有物品不推薦，細件可以一鍵回報。">
+<section data-chapter="方案" role="group" aria-roledescription="slide" aria-label="第 8 頁" class="slide" data-notes="（約35秒）如果你是同學，打開 App 就是這樣。【點畫面播放約 30 秒短片，有普通話配音；再點一下可暫停】【播完】評審現在就可以掃碼試用。——短片播不到時，改為講：選兩個人要插座，即時列出可以坐在一起的空位；平面圖藍點就是符合的座位；黃點有物品不推薦，細件可以一鍵回報。">
 <p class="eyebrow">如果你是同學：怎樣使用</p>
 <h2>30 秒看懂 App</h2>
 <div style="display:flex; gap:48px; margin-top:28px; align-items:center;">
-<div class="vid a-pop" style="--d:1"><video id="appvid" src="video/seatmatch-app-v2.mp4" poster="video/poster-v2.jpg" playsinline preload="auto" aria-label="App 介紹短片（普通話配音）：選人數和需要、平面圖帶路、暫離、一鍵回報、匿名需求數據"></video><button class="vplay" id="vplay"><span aria-hidden="true">▶</span>全屏播放</button></div>
+<div class="vid a-pop" style="--d:1"><video id="appvid" src="video/seatmatch-app-v2.mp4" poster="video/poster-v2.jpg" playsinline preload="auto" aria-label="App 介紹短片（普通話配音）：選人數和需要、平面圖帶路、暫離、一鍵回報、匿名需求數據"></video><button class="vplay" id="vplay"><span aria-hidden="true">▶</span>播放</button></div>
 <div class="a-pop" style="--d:4; flex:1; display:flex; flex-direction:column; align-items:center; gap:18px; background:var(--card); border:2px solid var(--line); border-radius:var(--r-l); padding:30px 20px; box-shadow:var(--shadow-1);">
 <img src="img/qr.png" style="width:220px; height:220px;" alt="QR 碼：jasonliu1199.github.io/seatmatch-prototype">
 <p style="font-size:36px; font-weight:900;">掃碼試用</p>
@@ -629,18 +630,20 @@ body.hint #help { opacity: 1; }
 
   // App video: plays full screen and drops back to the deck when it ends.
   const appvid = document.getElementById('appvid');
+  // Plays inside the slide; the button hides while it plays and comes back at the end.
+  const vplay = document.getElementById('vplay');
   function playAppVideo() {
-    appvid.currentTime = 0;
-    if (appvid.requestFullscreen) appvid.requestFullscreen().catch(() => {});
+    if (!appvid.paused) { appvid.pause(); return; }
+    if (appvid.ended) appvid.currentTime = 0;
     appvid.play();
   }
+  appvid.addEventListener('play', () => { vplay.hidden = true; });
+  appvid.addEventListener('pause', () => { vplay.hidden = false; });
   document.getElementById('vplay').addEventListener('click', e => { e.stopPropagation(); playAppVideo(); });
   appvid.addEventListener('click', playAppVideo);
-  appvid.addEventListener('ended', () => { if (document.fullscreenElement === appvid) document.exitFullscreen(); });
   document.addEventListener('slidechange', () => { if (!slides[cur].contains(appvid)) appvid.pause(); });
   addEventListener('keydown', e => {
     // While the app video is full screen, keys control the video, not the deck.
-    if (document.fullscreenElement === appvid) { if (e.key === ' ' || e.key === 'k') { e.preventDefault(); appvid.paused ? appvid.play() : appvid.pause(); } return; }
     if ((e.key === 'v' || e.key === 'V') && slides[cur].contains(appvid)) { playAppVideo(); return; }
     if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(cur + 1); }
     else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
