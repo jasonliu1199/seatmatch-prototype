@@ -122,60 +122,77 @@ function field() {
 async function count() { for (let i = 0; i <= 30; i++) { $('cnt').textContent = Math.round(3000 * (1 - Math.pow(1 - i / 30, 3))).toLocaleString(); await sleep(28); } }
 const progress = p => $('bar').style.width = p + '%';
 
+let VO = [];
+window.MARK = [];
+let T0 = 0;
+function mark(i) { window.MARK[i] = Date.now() / 1000; T0 = performance.now(); }
+async function until(i, extra) { const need = VO[i] * 1000 + (extra == null ? 450 : extra); const el = performance.now() - T0; if (el < need) await sleep(need - el); }
+
 async function run() {
+  VO = await (await fetch('durs.json')).json();
   D = $('app').contentDocument; home();
   await document.fonts.ready; await sleep(300);
-  field(); $('intro').classList.add('go'); count();
-  await sleep(3300);
+  mark(0); field(); $('intro').classList.add('go'); count();
+  await until(0, 600);
   $('intro').classList.add('out'); cam.style.opacity = 1; $('brand').style.opacity = 1;
 
+  mark(1);
   await panel('01', '選人數，<br>選<em>你的</em>需要', '要插座、要和同伴坐、要安靜', '<i style="background:#4F86D6"></i>即時配對');
   progress(18);
-  await sleep(700);
-  await tap(D.getElementById('n-3'), 900);
-  await panel('01', '只列出<br><em>坐在一起</em>的位', '長桌只配對<b>相鄰或面對面</b>的座位');
-  look(209, 330, 1.55);               // push in on the results
   await sleep(500);
-  await tap(D.getElementById('n-2'), 1500);
+  await tap(D.getElementById('n-3'), 600);
+  await until(1);
+
+  mark(2);
+  await panel('01', '只列出<br><em>坐在一起</em>的位', '長桌只配對<b>相鄰或面對面</b>的座位');
+  look(209, 330, 1.55);
+  await sleep(300);
+  await tap(D.getElementById('n-2'), 500);
+  await until(2);
   home();
 
+  mark(3);
   await panel('02', '平面圖<br><em>直接帶路</em>', '<b style="color:#7FA6E0">藍點</b>＝符合你　綠＝空位　紅＝有人', '<i style="background:#4F86D6"></i>LG3 試點區・40 個座位');
   progress(40);
-  await tap(D.getElementById('show-0'), 500);
+  await tap(D.getElementById('show-0'), 300);
   const blue = D.querySelector('.mdot.pick') || D.querySelector('.mdot.match');
   const [bx, by] = local(blue); look(bx, by, 1.9);
-  await sleep(2000);
-  home(); await sleep(600);
+  await until(3, 200);
+  home(); await sleep(500);
 
+  mark(4);
   const away = [...D.querySelectorAll('.mdot.away')].sort((a, b) => a.offsetTop - b.offsetTop)[0];
   await panel('03', '有物品、沒有人<br>＝<em>暫離</em>', '<b style="color:#E5B300">黃點</b>不推薦，暫離太久定期回報館方', '<i style="background:#E5B300"></i>紅外線＋桌底電容');
   progress(62);
   await tap(away, 300);
-  look(209, 800, 1.6);                // push in on the seat sheet
-  await sleep(2200);
-  home();
-  await tap(D.getElementById('sheet-close'), 300);
-
-  const w = D.getElementById('mapwrap');
-  const free = [...D.querySelectorAll('.mdot')].filter(d => !/taken|away|match/.test(d.className)).sort((a, b) => a.offsetTop - b.offsetTop)[0];
-  await panel('04', '細件偵測不到？<br><em>一鍵回報</em>', '同學回報後，座位即時變黃、暫不推薦');
-  progress(80);
-  await tap(free, 600);
-  look(209, 800, 1.6); await sleep(400);
-  await tap(D.getElementById('rep-item'), 1500);
+  look(209, 800, 1.6);
+  await until(4, 200);
   home();
   await tap(D.getElementById('sheet-close'), 200);
 
+  mark(5);
+  const free = [...D.querySelectorAll('.mdot')].filter(d => !/taken|away|match/.test(d.className)).sort((a, b) => a.offsetTop - b.offsetTop)[0];
+  await panel('04', '細件偵測不到？<br><em>一鍵回報</em>', '同學回報後，座位即時變黃、暫不推薦');
+  progress(80);
+  await tap(free, 400);
+  look(209, 800, 1.6); await sleep(300);
+  await tap(D.getElementById('rep-item'), 600);
+  await until(5, 300);
+  home();
+  await tap(D.getElementById('sheet-close'), 200);
+
+  mark(6);
   await panel('05', '匿名需求數據', '告訴圖書館：同學<b>缺哪種座位</b>', '<i style="background:#B8590F"></i>不記錄身份');
   progress(100);
-  await tap(D.getElementById('t-demand'), 400);
+  await tap(D.getElementById('t-demand'), 300);
   look(209, 330, 1.5);
-  await sleep(2000);
+  await until(6, 300);
   finger.classList.remove('on');
 
   cam.style.opacity = 0; $('panel').classList.add('out'); $('brand').style.opacity = 0;
   $('outro').classList.remove('out'); await sleep(80); $('outro').classList.add('go');
-  await sleep(3000);
+  mark(7);
+  await until(7, 1800);
   window.DONE = true;
 }
 window.START = () => run();

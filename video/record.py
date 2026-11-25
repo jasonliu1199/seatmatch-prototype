@@ -25,10 +25,15 @@ async def main():
         await cdp.send('Page.startScreencast', {'format': 'jpeg', 'quality': 92, 'maxWidth': W, 'maxHeight': H, 'everyNthFrame': 1})
         await page.evaluate('START()')
         await page.wait_for_function('window.DONE === true', timeout=120000, polling=200)
+        marks = await page.evaluate('window.MARK || []')
         await cdp.send('Page.stopScreencast'); await b.close()
+        frames.append(('marks', marks))
     return frames
 
 frames = asyncio.run(main()); srv.shutdown()
+import json
+marks = frames.pop()[1]
+json.dump({'t0': frames[0][0], 'end': frames[-1][0], 'marks': marks}, open(out + '.json', 'w'))
 t0 = frames[0][0]
 lines = []
 for i, (ts, data) in enumerate(frames):
